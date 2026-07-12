@@ -19,7 +19,8 @@
         batteries: [],
         chargers: [],
         relationships: [],
-        dealerRules: []
+        dealerRules: [],
+        promotions: []
       },
       filters: {
         keyword: '',
@@ -612,7 +613,7 @@
       );
     }
 
-    function runUniversalRules(items, calculatedTotals = {}) {
+    function runUniversalRules(items, calculatedTotals = {}, promotionEvaluation = null) {
       const engineStarted = performance.now();
       const result = {
         engineVersion: '1.1',
@@ -680,12 +681,29 @@
 
       [
         ['Compatibility', 'Relationship-driven compatibility already applied.'],
-        ['Pricing', 'Shared Universal Pricing Engine completed.'],
-        ['Promotions', 'No promotion rules configured.'],
-        ['Freight', 'No freight rules configured.']
+        ['Pricing', 'Shared Universal Pricing Engine completed.']
       ].forEach(([stage, message]) => {
         timeStage(stage, () => ({ stage, status: 'PASS', messages: [message] }));
       });
+
+      timeStage('Promotions', () => {
+        const evaluation = promotionEvaluation || {
+          status: 'NOT_CONFIGURED',
+          messages: ['Promotion Engine is unavailable.'],
+          applied: [], rejected: [], adjustments: [], customerSavings: 0, dealerFunding: 0
+        };
+        result.adjustments.push(...(evaluation.adjustments || []));
+        result.warnings.push(...(evaluation.warnings || []));
+        result.errors.push(...(evaluation.errors || []));
+        return {
+          stage: 'Promotions',
+          status: evaluation.status || 'PASS',
+          messages: evaluation.messages || [],
+          details: evaluation
+        };
+      });
+
+      timeStage('Freight', () => ({ stage:'Freight', status:'PASS', messages:['No freight rules configured.'] }));
 
       timeStage('Dealer Rules', () => {
         const engine = window.UniversalCPQ?.registry?.getEngine('dealer-rules');
@@ -827,14 +845,32 @@
         });
       });
 
+      const promotionEngine = window.UniversalCPQ?.registry?.getEngine('promotions');
+      const promotionEvaluation = promotionEngine && typeof promotionEngine.evaluate === 'function'
+        ? promotionEngine.evaluate({
+            promotions: appState.data.promotions,
+            items,
+            totals: { productSubtotal, componentSubtotal, subtotal },
+            brand: appState.brand,
+            dealer: appState.dealer,
+            application: appState.application,
+            financeSelected: false
+          })
+        : { status:'NOT_CONFIGURED', messages:['Promotion Engine is unavailable.'], applied:[], rejected:[], adjustments:[], customerSavings:0, dealerFunding:0 };
+      const promotionSavings = Math.min(subtotal, money(promotionEvaluation.customerSavings));
+      const adjustedSubtotal = Math.max(0, subtotal - promotionSavings);
+      const adjustedGrossProfit = dealerCostSubtotal > 0 ? adjustedSubtotal - dealerCostSubtotal + money(promotionEvaluation.dealerFunding) : null;
+      const adjustedGrossMarginPercent = adjustedGrossProfit === null || adjustedSubtotal <= 0 ? null : (adjustedGrossProfit / adjustedSubtotal) * 100;
+
       const pricingMs = performance.now() - pricingStarted;
       const rules = runUniversalRules(items, {
         listSubtotal,
         dealerCostSubtotal,
-        discountAmount,
-        grossProfit,
-        grossMarginPercent
-      });
+        discountAmount: discountAmount + promotionSavings,
+        grossProfit: adjustedGrossProfit,
+        grossMarginPercent: adjustedGrossMarginPercent,
+        subtotal: adjustedSubtotal
+      }, promotionEvaluation);
 
       appState.configuration = {
         schemaVersion: '1.3',
@@ -850,20 +886,23 @@
         pricing: {
           trace
         },
+        promotions: promotionEvaluation,
         rules,
         totals: {
           productSubtotal,
           componentSubtotal,
-          subtotal,
+          subtotal: adjustedSubtotal,
+          prePromotionSubtotal: subtotal,
           freight: 0,
-          promotions: 0,
+          promotions: promotionSavings,
+          dealerPromotionFunding: money(promotionEvaluation.dealerFunding),
           tax: 0,
-          total: subtotal,
+          total: adjustedSubtotal,
           listSubtotal,
           dealerCostSubtotal,
-          discountAmount,
-          grossProfit,
-          grossMarginPercent
+          discountAmount: discountAmount + promotionSavings,
+          grossProfit: adjustedGrossProfit,
+          grossMarginPercent: adjustedGrossMarginPercent
         },
         performance: {
           configurationBuildMs,
@@ -2167,7 +2206,8 @@
           chargers: appState.data.chargers.length,
           compatibility: appState.data.compatibility.length,
           relationships: appState.data.relationships.length,
-          dealerRules: appState.data.dealerRules.length
+          dealerRules: appState.data.dealerRules.length,
+          promotions: appState.data.promotions.length
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2219,6 +2259,7 @@
       }
       byId('diagnostic-rules').textContent = ruleLines.join('\n');
       byId('diagnostic-dealer-rules').textContent = JSON.stringify({ loadedRules: appState.data.dealerRules, evaluation: (appState.configuration?.rules?.stages || []).find(stage => stage.stage === 'Dealer Rules')?.details || null }, null, 2);
+      byId('diagnostic-promotions').textContent = JSON.stringify({ loadedPromotions: appState.data.promotions, evaluation: appState.configuration?.promotions || null }, null, 2);
 
       const performanceLines = [];
       const performanceData = appState.configuration?.performance;
@@ -2318,6 +2359,7 @@
         } : null,
         configuration: appState.configuration,
         calculationTrace: pricingTrace,
+        promotions: appState.configuration?.promotions || null,
         ruleTrace: rules,
         performance: {
           current: performance,
@@ -2335,7 +2377,8 @@
           relationshipRows: appState.data.relationships.length,
           unifiedComponents: allComponents().length,
           configuredItems: appState.configuration?.items?.length || 0,
-          dealerRuleRows: appState.data.dealerRules.length
+          dealerRuleRows: appState.data.dealerRules.length,
+          promotionRows: appState.data.promotions.length
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2802,6 +2845,18 @@
       }
     }
 
+
+    async function loadPromotions() {
+      const path = clean(appState.application?.promotionsDataPath) || 'data/promotions.csv';
+      try {
+        const rows = await loadDataFile('promotions', path);
+        console.log(`Loaded ${rows.length} promotion row(s): ${path}`);
+      } catch (error) {
+        appState.data.promotions = [];
+        console.info(`Promotions not configured: ${path}`);
+      }
+    }
+
     async function loadDealerRules() {
       const path = clean(appState.application?.dealerRulesDataPath) || 'data/dealer-rules.csv';
       try {
@@ -2957,6 +3012,7 @@
         await loadBatteries();
         await loadChargers();
         await loadRelationships();
+        await loadPromotions();
         await loadDealerRules();
         await loadProducts();
       }

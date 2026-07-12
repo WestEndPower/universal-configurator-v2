@@ -1,0 +1,3 @@
+PromotionID,PromotionName,Active,BrandID,ProductID,SKU,Category,System,StartDate,EndDate,PromotionType,Value,DiscountBasis,MaximumDiscount,Stackable,Priority,CustomerText,DealerFundingType,DealerFundingValue,RequiresFinance,FinanceGroup
+PROMO-TEST-100,Test Product 100 Rebate,T,,TEST-001,,,,2026-01-01,2026-12-31,Dollar_Rebate,100,Matching_Items,100,F,10,Save $100,Fixed,100,F,
+PROMO-BATTERY-10,Battery System Discount,T,,,,,A-System,2026-01-01,2026-12-31,Percent_Discount,10,Matching_Items,200,T,20,Save 10%,Percent,100,F,
