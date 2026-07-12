@@ -72,3 +72,12 @@
 ## V2.15.1
 - Fixed `item is not defined` during product-list rendering.
 - Restored product-name rendering with `product.ProductName`.
+
+## Version 2.0.15.2
+
+- Added developer diagnostics panel.
+- Added live normalized CPQ object inspection.
+- Added loaded row and relationship counts.
+- Added session-only round-number test pricing.
+- Round test values: product $1,000, battery $100, charger $10, other component $1.
+- Test mode does not change dealer files or CSV data.

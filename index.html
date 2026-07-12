@@ -715,6 +715,64 @@
         text-align: left;
       }
     }
+
+
+    .developer-panel {
+      display: none;
+      border: 2px dashed var(--warning-color);
+      background: #fffdf5;
+    }
+
+    .developer-panel.active { display: block; }
+
+    .developer-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .developer-note {
+      margin: 0;
+      color: var(--muted-text);
+      font-size: 13px;
+    }
+
+    .diagnostic-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .diagnostic-json {
+      max-height: 360px;
+      overflow: auto;
+      margin: 0;
+      padding: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 9px;
+      background: #111;
+      color: #f5f5f5;
+      font: 12px/1.45 Consolas, Monaco, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .round-test-banner {
+      display: none;
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border: 1px solid #e2c45c;
+      border-radius: 8px;
+      background: #fff7d6;
+      font-weight: 800;
+    }
+
+    .round-test-banner.active { display: block; }
+
   </style>
 </head>
 
@@ -732,8 +790,14 @@
           </p>
         </div>
 
-        <div class="version-badge" id="version-badge">
-          Version 2
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="button" id="toggle-developer-panel" type="button">
+            Developer Diagnostics
+          </button>
+
+          <div class="version-badge" id="version-badge">
+            Version 2
+          </div>
         </div>
       </div>
     </header>
@@ -796,8 +860,36 @@
       <div class="error-panel" id="error-panel"></div>
 
       <div class="app-ready-panel" id="app-ready-panel">
-        Version 2 configuration and product data loaded successfully.
+        Version 2.0.15.2 configuration and product data loaded successfully.
       </div>
+    </section>
+
+    <section class="card developer-panel" id="developer-panel">
+      <div class="developer-toolbar">
+        <div>
+          <h2 style="margin-bottom:6px;">Developer Diagnostics</h2>
+          <p class="developer-note">
+            Session-only testing tools. Dealer files and CSV data are never changed.
+          </p>
+        </div>
+
+        <button class="button" id="toggle-round-test-prices" type="button">
+          Enable Round Test Prices
+        </button>
+      </div>
+
+      <div class="round-test-banner" id="round-test-banner">
+        ROUND TEST MODE: Product $1,000 • Battery $100 • Charger $10 • Other component $1
+      </div>
+
+      <div class="diagnostic-grid">
+        <div class="summary-box"><div class="summary-label">Products</div><div class="summary-value" id="diag-products">0</div></div>
+        <div class="summary-box"><div class="summary-label">Components</div><div class="summary-value" id="diag-components">0</div></div>
+        <div class="summary-box"><div class="summary-label">Relationships</div><div class="summary-value" id="diag-relationships">0</div></div>
+        <div class="summary-box"><div class="summary-label">Configured Items</div><div class="summary-value" id="diag-items">0</div></div>
+      </div>
+
+      <pre class="diagnostic-json" id="diagnostic-json">Diagnostics will appear after startup.</pre>
     </section>
 
     <section class="card" id="product-search-card" hidden>
@@ -1095,7 +1187,11 @@
           total: 0
         }
       },
-      startupErrors: []
+      startupErrors: [],
+      developer: {
+        panelOpen: false,
+        roundTestPrices: false
+      }
     };
 
     function byId(id) {
@@ -1154,7 +1250,48 @@
       }).format(money(value));
     }
 
+    function diagnosticUnitPrice(record, kind = '') {
+      if (!appState.developer.roundTestPrices) {
+        return null;
+      }
+
+      const normalizedKind = normalized(
+        kind || record?.ComponentType || 'component'
+      );
+
+      if (normalizedKind === 'product') {
+        return 1000;
+      }
+
+      if (normalizedKind === 'battery') {
+        return 100;
+      }
+
+      if (normalizedKind === 'charger') {
+        return 10;
+      }
+
+      return 1;
+    }
+
+    function componentUnitPrice(component) {
+      const diagnosticPrice = diagnosticUnitPrice(
+        component,
+        component?.ComponentType
+      );
+
+      return diagnosticPrice === null
+        ? money(component?.Price)
+        : diagnosticPrice;
+    }
+
     function productUnitPrice(product) {
+      const diagnosticPrice = diagnosticUnitPrice(product, 'product');
+
+      if (diagnosticPrice !== null) {
+        return diagnosticPrice;
+      }
+
       return money(product?.SalePrice) > 0
         ? money(product.SalePrice)
         : money(product?.MSRP);
@@ -1570,7 +1707,7 @@
           1
         );
 
-        const unitPrice = money(component.Price);
+        const unitPrice = componentUnitPrice(component);
         const totalQuantity =
           quantityPerProduct * productQuantity;
 
@@ -1654,6 +1791,10 @@
           total: subtotal
         }
       };
+
+      if (byId('developer-panel')) {
+        renderDeveloperDiagnostics();
+      }
 
       return appState.configuration;
     }
@@ -2371,7 +2512,7 @@
         (total, component) =>
           total +
           (
-            money(component.Price) *
+            componentUnitPrice(component) *
             componentSelectedQuantity(component.ComponentID)
           ),
         0
@@ -2404,7 +2545,7 @@
 
       selectedComponentRecords().forEach(component => {
         const lineAmount =
-          money(component.Price) *
+          componentUnitPrice(component) *
           componentSelectedQuantity(component.ComponentID) *
           quantity;
 
@@ -2641,7 +2782,7 @@
 
                   <span class="component-price">
                     ${formatMoney(
-                      money(component.Price) *
+                      componentUnitPrice(component) *
                       positiveInteger(
                         appState.selection.componentQuantities[
                           clean(component.ComponentID)
@@ -2870,7 +3011,101 @@
       });
     }
 
+
+    function renderDeveloperDiagnostics() {
+      const panel = byId('developer-panel');
+      const banner = byId('round-test-banner');
+      const toggleButton = byId('toggle-round-test-prices');
+
+      panel.classList.toggle(
+        'active',
+        appState.developer.panelOpen
+      );
+
+      banner.classList.toggle(
+        'active',
+        appState.developer.roundTestPrices
+      );
+
+      toggleButton.textContent = appState.developer.roundTestPrices
+        ? 'Disable Round Test Prices'
+        : 'Enable Round Test Prices';
+
+      byId('diag-products').textContent = activeProducts().length;
+      byId('diag-components').textContent = allComponents().length;
+      byId('diag-relationships').textContent = appState.data.relationships.length;
+      byId('diag-items').textContent = appState.configuration.items.length;
+
+      const selected = selectedProduct();
+      const diagnostics = {
+        version: clean(appState.application?.applicationVersion),
+        roundTestPrices: appState.developer.roundTestPrices,
+        roundPriceReference: {
+          product: 1000,
+          battery: 100,
+          charger: 10,
+          otherComponent: 1
+        },
+        selectedProduct: selected ? {
+          productId: clean(selected.ProductID),
+          sku: clean(selected.SKU),
+          name: clean(selected.ProductName),
+          system: clean(selected.System),
+          quantity: appState.selection.quantity,
+          selectedComponentIds: [...appState.selection.componentIds],
+          componentQuantities: {
+            ...appState.selection.componentQuantities
+          }
+        } : null,
+        configuration: appState.configuration,
+        loadedRows: {
+          products: appState.data.products.length,
+          components: appState.data.components.length,
+          batteries: appState.data.batteries.length,
+          chargers: appState.data.chargers.length,
+          compatibility: appState.data.compatibility.length,
+          relationships: appState.data.relationships.length
+        },
+        startupErrors: [...appState.startupErrors]
+      };
+
+      byId('diagnostic-json').textContent = JSON.stringify(
+        diagnostics,
+        null,
+        2
+      );
+    }
+
+    function refreshAfterDiagnosticPriceChange() {
+      calculateConfiguration();
+      renderProducts();
+
+      if (selectedProduct()) {
+        renderSelectedProduct();
+      }
+
+      renderDeveloperDiagnostics();
+    }
+
     function bindApplicationEvents() {
+      byId('toggle-developer-panel').addEventListener(
+        'click',
+        () => {
+          appState.developer.panelOpen =
+            !appState.developer.panelOpen;
+          renderDeveloperDiagnostics();
+        }
+      );
+
+      byId('toggle-round-test-prices').addEventListener(
+        'click',
+        () => {
+          appState.developer.roundTestPrices =
+            !appState.developer.roundTestPrices;
+          refreshAfterDiagnosticPriceChange();
+        }
+      );
+
       [
         'filter-keyword',
         'filter-category',
@@ -3408,6 +3643,7 @@
       }
 
       renderStartupResult();
+      renderDeveloperDiagnostics();
 
       console.log(
         'Universal Configurator Version 2 CPQ state:',
