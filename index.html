@@ -505,6 +505,17 @@
       color: var(--error-color);
     }
 
+    .compatibility-note {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: #eef4ff;
+      color: #1849a9;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
 
     .configuration-header {
       display: flex;
@@ -700,6 +711,11 @@
         <div class="status-row">
           <div class="status-label">Components</div>
           <div class="status-value loading" id="status-components">Waiting...</div>
+        </div>
+
+        <div class="status-row">
+          <div class="status-label">Compatibility</div>
+          <div class="status-value loading" id="status-compatibility">Waiting...</div>
         </div>
       </div>
 
@@ -973,7 +989,8 @@
       tax: null,
       data: {
         products: [],
-        components: []
+        components: [],
+        compatibility: []
       },
       filters: {
         keyword: '',
@@ -1657,29 +1674,152 @@
       renderCurrentConfiguration();
     }
 
-    function componentsForProduct(product) {
+    function compatibilityRulesForProduct(product) {
       if (!product) {
         return [];
       }
 
       const productId = clean(product.ProductID);
-      const sku = clean(product.SKU);
+      const productSKU = clean(product.SKU);
       const category = clean(product.Category);
+      const system = clean(product.System);
+      const series = clean(product.Series);
+
+      return appState.data.compatibility
+        .filter(rule => isTrue(rule.Active))
+        .filter(rule => {
+          const ruleProductId = clean(rule.ProductID);
+          const ruleProductSKU = clean(rule.ProductSKU);
+          const ruleCategory = clean(rule.ProductCategory);
+          const ruleSystem = clean(rule.ProductSystem);
+          const ruleSeries = clean(rule.ProductSeries);
+
+          const hasAnyRule =
+            ruleProductId ||
+            ruleProductSKU ||
+            ruleCategory ||
+            ruleSystem ||
+            ruleSeries;
+
+          if (!hasAnyRule) {
+            return false;
+          }
+
+          return (
+            (!ruleProductId || ruleProductId === productId) &&
+            (!ruleProductSKU || ruleProductSKU === productSKU) &&
+            (!ruleCategory || ruleCategory === category) &&
+            (!ruleSystem || ruleSystem === system) &&
+            (!ruleSeries || ruleSeries === series)
+          );
+        });
+    }
+
+    function componentCompatibilityResult(product, component) {
+      const rules =
+        compatibilityRulesForProduct(product);
+
+      const componentId =
+        clean(component.ComponentID);
+
+      const componentSKU =
+        clean(component.SKU);
+
+      const componentType =
+        clean(component.ComponentType);
+
+      const matchingRules =
+        rules.filter(rule => (
+          (!clean(rule.ComponentID) ||
+            clean(rule.ComponentID) === componentId) &&
+          (!clean(rule.ComponentSKU) ||
+            clean(rule.ComponentSKU) === componentSKU) &&
+          (!clean(rule.ComponentType) ||
+            clean(rule.ComponentType) === componentType)
+        ));
+
+      if (matchingRules.length) {
+        const explicitExclusion =
+          matchingRules.find(
+            rule => clean(rule.Compatible).toUpperCase() === 'F'
+          );
+
+        if (explicitExclusion) {
+          return {
+            compatible: false,
+            reason:
+              clean(explicitExclusion.Note) ||
+              'Excluded by compatibility rule.'
+          };
+        }
+
+        const explicitInclusion =
+          matchingRules.find(
+            rule => clean(rule.Compatible).toUpperCase() === 'T'
+          );
+
+        if (explicitInclusion) {
+          return {
+            compatible: true,
+            reason:
+              clean(explicitInclusion.Note) ||
+              'Matched by compatibility rule.'
+          };
+        }
+      }
+
+      const appliesToProductId =
+        clean(component.AppliesToProductID);
+
+      const appliesToSKU =
+        clean(component.AppliesToSKU);
+
+      const appliesToCategory =
+        clean(component.AppliesToCategory);
+
+      const productId =
+        clean(product.ProductID);
+
+      const productSKU =
+        clean(product.SKU);
+
+      const productCategory =
+        clean(product.Category);
+
+      const legacyMatch = (
+        (!appliesToProductId &&
+          !appliesToSKU &&
+          !appliesToCategory) ||
+        (appliesToProductId &&
+          appliesToProductId === productId) ||
+        (appliesToSKU &&
+          appliesToSKU === productSKU) ||
+        (appliesToCategory &&
+          appliesToCategory === productCategory)
+      );
+
+      return {
+        compatible: legacyMatch,
+        reason:
+          legacyMatch
+            ? 'Matched by component applicability.'
+            : 'No compatible rule found.'
+      };
+    }
+
+    function componentsForProduct(product) {
+      if (!product) {
+        return [];
+      }
 
       return appState.data.components
         .filter(component => isTrue(component.Active))
-        .filter(component => {
-          const appliesToProductId = clean(component.AppliesToProductID);
-          const appliesToSKU = clean(component.AppliesToSKU);
-          const appliesToCategory = clean(component.AppliesToCategory);
-
-          return (
-            (!appliesToProductId && !appliesToSKU && !appliesToCategory) ||
-            (appliesToProductId && appliesToProductId === productId) ||
-            (appliesToSKU && appliesToSKU === sku) ||
-            (appliesToCategory && appliesToCategory === category)
-          );
-        })
+        .map(component => ({
+          ...component,
+          _compatibility:
+            componentCompatibilityResult(product, component)
+        }))
+        .filter(component => component._compatibility.compatible)
         .sort(
           (first, second) =>
             money(first.SortOrder) - money(second.SortOrder)
@@ -1880,6 +2020,16 @@
                           : '<span class="component-badge excluded">No Rebate</span>'
                       }
                     </span>
+
+                    ${
+                      component._compatibility?.reason
+                        ? `
+                          <span class="compatibility-note">
+                            ${escapeHtml(component._compatibility.reason)}
+                          </span>
+                        `
+                        : ''
+                    }
                   </span>
 
                   <span class="component-price">
@@ -2193,6 +2343,39 @@
       );
     }
 
+    async function loadCompatibility() {
+      const compatibilityPath =
+        clean(appState.brand?.compatibilityDataPath) ||
+        'data/compatibility.csv';
+
+      try {
+        const compatibility =
+          await loadDataFile(
+            'compatibility',
+            compatibilityPath
+          );
+
+        setStatus(
+          'compatibility',
+          `Loaded ${compatibility.length} row(s): ${compatibilityPath}`,
+          'success'
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : String(error);
+
+        appState.startupErrors.push(message);
+
+        setStatus(
+          'compatibility',
+          message,
+          'error'
+        );
+      }
+    }
+
     async function loadComponents() {
       const componentPath =
         clean(appState.brand?.componentDataPath) ||
@@ -2365,6 +2548,7 @@
       renderApplicationIdentity();
 
       if (appState.brand) {
+        await loadCompatibility();
         await loadComponents();
         await loadProducts();
       }

@@ -1,0 +1,6 @@
+﻿CompatibilityID,ProductID,ProductSKU,ProductCategory,ProductSystem,ProductSeries,ComponentID,ComponentSKU,ComponentType,Compatible,Required,Note,Active,SortOrder
+COMPAT-001,TEST-002,,,,,CMP-001,,,T,F,Exact product match,T,1
+COMPAT-002,TEST-002,,,,,CMP-002,,,T,F,Approved aftermarket option,T,2
+COMPAT-003,,,Handheld,,,CMP-007,,,T,F,Category match,T,3
+COMPAT-004,,,,A-System,,,,Battery,T,F,System match,T,4
+COMPAT-005,TEST-002,,,,,CMP-007,,,F,F,Excluded for this product,T,5

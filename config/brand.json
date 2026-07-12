@@ -8,5 +8,6 @@
   "accentColor": "#f4f4f4",
   "productDataPath": "data/products.csv",
   "active": true,
-  "componentDataPath": "data/components.csv"
+  "componentDataPath": "data/components.csv",
+  "compatibilityDataPath": "data/compatibility.csv"
 }
