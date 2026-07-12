@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -15,7 +14,6 @@
       --brand-primary: #333333;
       --brand-secondary: #111111;
       --brand-accent: #f4f4f4;
-
       --page-background: #f5f5f5;
       --card-background: #ffffff;
       --border-color: #d9d9d9;
@@ -35,10 +33,7 @@
       min-height: 100vh;
       background: var(--page-background);
       color: var(--text-color);
-      font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     .app-shell {
@@ -99,7 +94,8 @@
       font-size: 20px;
     }
 
-    .status-list {
+    .status-list,
+    .product-list {
       display: grid;
       gap: 10px;
     }
@@ -161,6 +157,56 @@
       font-weight: 700;
     }
 
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 2fr repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted-text);
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-color);
+      font-size: 14px;
+    }
+
+    .filter-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .result-count {
+      font-weight: 800;
+    }
+
+    .clear-button {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
     .product-summary {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -189,11 +235,6 @@
       font-weight: 800;
     }
 
-    .product-list {
-      display: grid;
-      gap: 10px;
-    }
-
     .product-row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -211,7 +252,8 @@
       font-weight: 800;
     }
 
-    .product-meta {
+    .product-meta,
+    .product-description {
       margin-top: 5px;
       color: var(--muted-text);
       font-size: 13px;
@@ -222,6 +264,21 @@
       white-space: nowrap;
     }
 
+    .empty-state {
+      padding: 20px;
+      border: 1px dashed var(--border-color);
+      border-radius: 9px;
+      color: var(--muted-text);
+      text-align: center;
+      background: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .filter-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
     @media (max-width: 700px) {
       .app-header-row {
         align-items: flex-start;
@@ -229,12 +286,15 @@
       }
 
       .status-row,
-      .product-row {
+      .product-row,
+      .filter-grid,
+      .product-summary {
         grid-template-columns: 1fr;
       }
 
-      .product-summary {
-        grid-template-columns: 1fr;
+      .filter-footer {
+        align-items: stretch;
+        flex-direction: column;
       }
     }
   </style>
@@ -298,7 +358,60 @@
     </section>
 
     <section class="card" id="product-data-card" hidden>
-      <h2>Universal Product Data</h2>
+      <h2>Universal Product Search</h2>
+
+      <div class="filter-grid">
+        <div>
+          <label for="filter-keyword">Search</label>
+          <input
+            id="filter-keyword"
+            type="search"
+            placeholder="Search model, SKU, product name, or description"
+          >
+        </div>
+
+        <div>
+          <label for="filter-category">Category</label>
+          <select id="filter-category">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="filter-power">Power Type</label>
+          <select id="filter-power">
+            <option value="">All Power Types</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="filter-system">System</label>
+          <select id="filter-system">
+            <option value="">All Systems</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="filter-series">Series</label>
+          <select id="filter-series">
+            <option value="">All Series</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-footer">
+        <div class="result-count" id="result-count">
+          0 products
+        </div>
+
+        <button
+          class="clear-button"
+          id="clear-filters"
+          type="button"
+        >
+          Clear Filters
+        </button>
+      </div>
 
       <div class="product-summary">
         <div class="summary-box">
@@ -326,20 +439,12 @@
   <script>
     'use strict';
 
-    /* =========================================================
-       SECTION 1 — APPLICATION PATHS
-       ========================================================= */
-
     const APP_PATHS = Object.freeze({
       application: 'config/application.json',
       dealer: 'config/dealer.json',
       brand: 'config/brand.json',
       tax: 'config/tax.json'
     });
-
-    /* =========================================================
-       SECTION 2 — APPLICATION STATE
-       ========================================================= */
 
     const appState = {
       application: null,
@@ -349,12 +454,15 @@
       data: {
         products: []
       },
+      filters: {
+        keyword: '',
+        category: '',
+        powerType: '',
+        system: '',
+        series: ''
+      },
       startupErrors: []
     };
-
-    /* =========================================================
-       SECTION 3 — BASIC UTILITIES
-       ========================================================= */
 
     function byId(id) {
       return document.getElementById(id);
@@ -364,9 +472,13 @@
       return String(value ?? '').trim();
     }
 
+    function normalized(value) {
+      return clean(value).toLowerCase();
+    }
+
     function isTrue(value) {
       return ['true', 't', 'yes', 'y', '1'].includes(
-        clean(value).toLowerCase()
+        normalized(value)
       );
     }
 
@@ -407,10 +519,6 @@
 
       element.classList.add(statusClass);
     }
-
-    /* =========================================================
-       SECTION 4 — FILE LOADERS
-       ========================================================= */
 
     async function loadTextFile(path) {
       const response = await fetch(path, {
@@ -516,8 +624,9 @@
     }
 
     async function loadCsvFile(path) {
-      const text = await loadTextFile(path);
-      return parseCsv(text);
+      return parseCsv(
+        await loadTextFile(path)
+      );
     }
 
     async function loadDataFile(dataKey, path) {
@@ -525,10 +634,6 @@
       appState.data[dataKey] = records;
       return records;
     }
-
-    /* =========================================================
-       SECTION 5 — CONFIGURATION
-       ========================================================= */
 
     function applyBrandTheme() {
       const brand = appState.brand || {};
@@ -622,10 +727,6 @@
       }
     }
 
-    /* =========================================================
-       SECTION 6 — PRODUCT DATA ENGINE
-       ========================================================= */
-
     function validateProducts(products) {
       const requiredColumns = [
         'ProductID',
@@ -696,48 +797,242 @@
         );
     }
 
+    function uniqueValues(products, fieldName) {
+      return [
+        ...new Set(
+          products
+            .map(product => clean(product[fieldName]))
+            .filter(Boolean)
+        )
+      ].sort(
+        (first, second) =>
+          first.localeCompare(second)
+      );
+    }
+
+    function populateSelect(
+      selectId,
+      values,
+      defaultLabel
+    ) {
+      const select = byId(selectId);
+
+      select.innerHTML = [
+        `<option value="">${defaultLabel}</option>`,
+        ...values.map(
+          value => `
+            <option value="${value}">
+              ${value}
+            </option>
+          `
+        )
+      ].join('');
+    }
+
+    function populateProductFilters() {
+      const products = activeProducts();
+
+      populateSelect(
+        'filter-category',
+        uniqueValues(products, 'Category'),
+        'All Categories'
+      );
+
+      populateSelect(
+        'filter-power',
+        uniqueValues(products, 'PowerType'),
+        'All Power Types'
+      );
+
+      populateSelect(
+        'filter-system',
+        uniqueValues(products, 'System'),
+        'All Systems'
+      );
+
+      populateSelect(
+        'filter-series',
+        uniqueValues(products, 'Series'),
+        'All Series'
+      );
+    }
+
+    function filteredProducts() {
+      const {
+        keyword,
+        category,
+        powerType,
+        system,
+        series
+      } = appState.filters;
+
+      return activeProducts().filter(product => {
+        const searchableText = [
+          product.ProductID,
+          product.BrandID,
+          product.SKU,
+          product.Model,
+          product.ProductName,
+          product.Category,
+          product.SubCategory,
+          product.Series,
+          product.PowerType,
+          product.System,
+          product.ShortDescription
+        ].map(normalized).join(' ');
+
+        const keywordMatches =
+          !keyword ||
+          searchableText.includes(normalized(keyword));
+
+        const categoryMatches =
+          !category ||
+          clean(product.Category) === category;
+
+        const powerMatches =
+          !powerType ||
+          clean(product.PowerType) === powerType;
+
+        const systemMatches =
+          !system ||
+          clean(product.System) === system;
+
+        const seriesMatches =
+          !series ||
+          clean(product.Series) === series;
+
+        return (
+          keywordMatches &&
+          categoryMatches &&
+          powerMatches &&
+          systemMatches &&
+          seriesMatches
+        );
+      });
+    }
+
     function renderProducts() {
       const allProducts =
         appState.data.products;
 
-      const products =
+      const active =
         activeProducts();
+
+      const products =
+        filteredProducts();
 
       byId('products-loaded-count').textContent =
         String(allProducts.length);
 
       byId('products-active-count').textContent =
-        String(products.length);
+        String(active.length);
 
       byId('products-data-file').textContent =
         clean(appState.brand?.productDataPath) ||
         'data/products.csv';
 
+      byId('result-count').textContent =
+        `${products.length} product${products.length === 1 ? '' : 's'}`;
+
       byId('product-list').innerHTML =
-        products.map(product => `
-          <article class="product-row">
-            <div>
-              <h3 class="product-name">
-                ${clean(product.ProductName)}
-              </h3>
+        products.length
+          ? products.map(product => `
+              <article class="product-row">
+                <div>
+                  <h3 class="product-name">
+                    ${clean(product.ProductName)}
+                  </h3>
 
-              <div class="product-meta">
-                ${[
-                  clean(product.BrandID),
-                  clean(product.Model),
-                  clean(product.SKU),
-                  clean(product.Category)
-                ].filter(Boolean).join(' • ')}
+                  <div class="product-meta">
+                    ${[
+                      clean(product.BrandID),
+                      clean(product.Model),
+                      clean(product.SKU),
+                      clean(product.Category),
+                      clean(product.PowerType),
+                      clean(product.System),
+                      clean(product.Series)
+                    ].filter(Boolean).join(' • ')}
+                  </div>
+
+                  ${
+                    clean(product.ShortDescription)
+                      ? `
+                        <div class="product-description">
+                          ${clean(product.ShortDescription)}
+                        </div>
+                      `
+                      : ''
+                  }
+                </div>
+
+                <div class="product-price">
+                  ${formatMoney(product.SalePrice || product.MSRP)}
+                </div>
+              </article>
+            `).join('')
+          : `
+              <div class="empty-state">
+                No products match the selected filters.
               </div>
-            </div>
-
-            <div class="product-price">
-              ${formatMoney(product.SalePrice || product.MSRP)}
-            </div>
-          </article>
-        `).join('');
+            `;
 
       byId('product-data-card').hidden = false;
+    }
+
+    function readFiltersFromControls() {
+      appState.filters.keyword =
+        clean(byId('filter-keyword').value);
+
+      appState.filters.category =
+        clean(byId('filter-category').value);
+
+      appState.filters.powerType =
+        clean(byId('filter-power').value);
+
+      appState.filters.system =
+        clean(byId('filter-system').value);
+
+      appState.filters.series =
+        clean(byId('filter-series').value);
+    }
+
+    function handleFilterChange() {
+      readFiltersFromControls();
+      renderProducts();
+    }
+
+    function clearFilters() {
+      byId('filter-keyword').value = '';
+      byId('filter-category').value = '';
+      byId('filter-power').value = '';
+      byId('filter-system').value = '';
+      byId('filter-series').value = '';
+
+      readFiltersFromControls();
+      renderProducts();
+    }
+
+    function bindProductFilters() {
+      [
+        'filter-keyword',
+        'filter-category',
+        'filter-power',
+        'filter-system',
+        'filter-series'
+      ].forEach(id => {
+        byId(id).addEventListener(
+          id === 'filter-keyword'
+            ? 'input'
+            : 'change',
+          handleFilterChange
+        );
+      });
+
+      byId('clear-filters').addEventListener(
+        'click',
+        clearFilters
+      );
     }
 
     async function loadProducts() {
@@ -767,6 +1062,8 @@
           'success'
         );
 
+        populateProductFilters();
+        bindProductFilters();
         renderProducts();
       } catch (error) {
         const message =
@@ -783,10 +1080,6 @@
         );
       }
     }
-
-    /* =========================================================
-       SECTION 7 — STARTUP VALIDATION
-       ========================================================= */
 
     function validateConfiguration() {
       const errors = [];
@@ -848,10 +1141,6 @@
       errorPanel.style.display = 'none';
       readyPanel.style.display = 'block';
     }
-
-    /* =========================================================
-       SECTION 8 — APPLICATION STARTUP
-       ========================================================= */
 
     async function initializeApplication() {
       await Promise.all([
