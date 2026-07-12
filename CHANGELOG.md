@@ -34,3 +34,26 @@
 
 ## V2.09
 - Added compact invoice-style configuration view
+
+## Version 2.0.14
+
+- Fixed universal compatibility fallback so components with a populated `System` must match the selected product `System` unless an explicit compatibility rule or relationship includes them.
+- A-System products now exclude B-System batteries and chargers through data values rather than hard-coded system names.
+- Updated Current Configuration to resolve components from the unified component collection (`components`, `batteries`, and `chargers`).
+- Current Configuration now groups selected components by component type and displays component name, SKU, and total quantity instead of raw component IDs.
+- Component quantities in Current Configuration reflect component quantity multiplied by configured product quantity.
+- Dealer and brand configuration files remain untouched.
+
+## Version 2.0.14.1
+
+- Made active product relationship rows the authoritative allowed-component list.
+- Removed the render fallback that could display unrelated batteries or chargers.
+- Preserved universal compatibility fallback only for legacy products with no relationship rows.
+- Kept all filtering brand agnostic and data driven.
+
+## Version 2.0.14.2
+
+- Displayed grouped component names, SKUs, and total quantities in Current Configuration.
+- Added the same grouped component detail to configured product rows so saved selections are visible immediately.
+- Reused the universal component collection across batteries, chargers, and other component sources.
+- Preserved compact invoice styling and the existing V2 architecture.

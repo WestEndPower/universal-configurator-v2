@@ -601,6 +601,30 @@
       font-size: 12px;
     }
 
+    .configuration-component-groups {
+      display: grid;
+      gap: 3px;
+      margin-top: 7px;
+    }
+
+    .configuration-component-group {
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr);
+      gap: 8px;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .configuration-component-type {
+      color: var(--muted-text);
+      font-weight: 800;
+    }
+
+    .configuration-component-items {
+      color: var(--body-text);
+      font-weight: 700;
+    }
+
     .configuration-line-total {
       font-weight: 900;
       text-align: right;
@@ -1527,6 +1551,114 @@
       ) || null;
     }
 
+    function componentById(componentId) {
+      return allComponents().find(
+        component =>
+          clean(component.ComponentID) === clean(componentId)
+      ) || null;
+    }
+
+    function groupedComponentsForCartItem(item) {
+      if (!Array.isArray(item?.componentIds)) {
+        return [];
+      }
+
+      const productQuantity =
+        positiveInteger(item.quantity, 1);
+
+      const groups = new Map();
+
+      item.componentIds.forEach(componentId => {
+        const component = componentById(componentId);
+
+        if (!component) {
+          return;
+        }
+
+        const type =
+          clean(component.ComponentType) || 'Component';
+
+        const selectedQuantity =
+          positiveInteger(
+            item.componentQuantities?.[clean(componentId)],
+            1
+          );
+
+        const totalQuantity =
+          selectedQuantity * productQuantity;
+
+        const itemKey = [
+          clean(component.ComponentID),
+          clean(component.SKU),
+          clean(component.ComponentName)
+        ].join('|');
+
+        if (!groups.has(type)) {
+          groups.set(type, new Map());
+        }
+
+        const typeItems = groups.get(type);
+        const existing = typeItems.get(itemKey);
+
+        if (existing) {
+          existing.quantity += totalQuantity;
+          return;
+        }
+
+        typeItems.set(itemKey, {
+          name:
+            clean(component.ComponentName) ||
+            clean(component.SKU) ||
+            clean(component.ComponentID),
+          sku: clean(component.SKU),
+          quantity: totalQuantity,
+          sortOrder: money(component.SortOrder)
+        });
+      });
+
+      return Array.from(groups.entries())
+        .map(([type, items]) => ({
+          type,
+          items: Array.from(items.values()).sort(
+            (first, second) =>
+              first.sortOrder - second.sortOrder ||
+              first.name.localeCompare(second.name)
+          )
+        }))
+        .sort((first, second) =>
+          first.type.localeCompare(second.type)
+        );
+    }
+
+    function renderCartItemComponentGroups(item) {
+      const groups = groupedComponentsForCartItem(item);
+
+      if (!groups.length) {
+        return '';
+      }
+
+      return `
+        <div class="configuration-component-groups">
+          ${groups.map(group => `
+            <div class="configuration-component-group">
+              <span class="configuration-component-type">
+                ${escapeHtml(group.type)}
+              </span>
+              <span class="configuration-component-items">
+                ${group.items.map(component => {
+                  const sku = component.sku
+                    ? ` • ${escapeHtml(component.sku)}`
+                    : '';
+
+                  return `${escapeHtml(component.name)}${sku} ×${component.quantity}`;
+                }).join(', ')}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
     function renderCurrentConfiguration() {
       const entries = Object.values(appState.cart);
       const card = byId('current-configuration-card');
@@ -1576,27 +1708,7 @@
                   ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
                 </div>
 
-                ${
-                  Array.isArray(item.componentIds) && item.componentIds.length
-                    ? `
-                      <div class="configuration-line-meta">
-                        Components: ${
-                          item.componentIds.map(id => {
-                            const component =
-                              appState.data.components.find(
-                                row =>
-                                  clean(row.ComponentID) === clean(id)
-                              );
-
-                            return component
-                              ? escapeHtml(component.ComponentName)
-                              : escapeHtml(id);
-                          }).join(', ')
-                        }
-                      </div>
-                    `
-                    : ''
-                }
+                ${renderCartItemComponentGroups(item)}
               </div>
 
               <div class="configuration-line-total">
@@ -1692,6 +1804,7 @@
                           <div class="configured-note">
                             Configured • Qty ${positiveInteger(saved.quantity, 1)} • ${formatMoney(saved.total)}
                           </div>
+                          ${renderCartItemComponentGroups(saved)}
                         `
                         : ''
                     }
@@ -1840,10 +1953,20 @@
       const productCategory =
         clean(product.Category);
 
-      const legacyMatch = (
-        (!appliesToProductId &&
-          !appliesToSKU &&
-          !appliesToCategory) ||
+      const productSystem =
+        clean(product.System);
+
+      const componentSystem =
+        clean(component.System);
+
+      const hasApplicability = Boolean(
+        appliesToProductId ||
+        appliesToSKU ||
+        appliesToCategory
+      );
+
+      const applicabilityMatch = (
+        (!hasApplicability) ||
         (appliesToProductId &&
           appliesToProductId === productId) ||
         (appliesToSKU &&
@@ -1852,12 +1975,25 @@
           appliesToCategory === productCategory)
       );
 
+      const systemMatch = (
+        !productSystem ||
+        !componentSystem ||
+        productSystem === componentSystem
+      );
+
+      const compatible =
+        applicabilityMatch && systemMatch;
+
       return {
-        compatible: legacyMatch,
+        compatible,
         reason:
-          legacyMatch
-            ? 'Matched by component applicability.'
-            : 'No compatible rule found.'
+          !applicabilityMatch
+            ? 'No compatible applicability rule found.'
+            : !systemMatch
+              ? 'Component system does not match the selected product.'
+              : productSystem && componentSystem
+                ? 'Matched by product system.'
+                : 'Matched by component applicability.'
       };
     }
 
@@ -2032,32 +2168,68 @@
         return [];
       }
 
-      const relationshipChildIds =
+      const relationships =
+        relationshipRowsForParent(product.ProductID);
+
+      const allowedComponentIds =
         new Set(
-          relationshipRowsForParent(product.ProductID)
+          relationships
             .map(row => clean(row.ChildID))
             .filter(Boolean)
         );
 
+      // A product with relationship rows uses those rows as the
+      // authoritative allowed-component list. This prevents an
+      // unrelated catalog component from being rendered merely
+      // because a broad compatibility fallback matched it.
+      if (allowedComponentIds.size) {
+        return allComponents()
+          .filter(component => isTrue(component.Active))
+          .filter(component =>
+            allowedComponentIds.has(
+              clean(component.ComponentID)
+            )
+          )
+          .map(component => ({
+            ...component,
+            _compatibility: {
+              compatible: true,
+              reason: 'Allowed by product relationship.'
+            },
+            _relationship:
+              relationshipForProductComponent(
+                product,
+                component
+              )
+          }))
+          .sort((first, second) => {
+            const firstRelationshipOrder = money(
+              first._relationship?.SortOrder
+            );
+            const secondRelationshipOrder = money(
+              second._relationship?.SortOrder
+            );
+
+            return (
+              firstRelationshipOrder -
+              secondRelationshipOrder
+            );
+          });
+      }
+
+      // Products without relationship rows retain the universal,
+      // data-driven compatibility fallback for legacy catalogs.
       return allComponents()
         .filter(component => isTrue(component.Active))
         .map(component => ({
           ...component,
           _compatibility:
             componentCompatibilityResult(product, component),
-
-          _relationship:
-            relationshipForProductComponent(
-              product,
-              component
-            )
+          _relationship: null
         }))
-        .filter(component => (
-          component._compatibility.compatible ||
-          relationshipChildIds.has(
-            clean(component.ComponentID)
-          )
-        ))
+        .filter(component =>
+          component._compatibility.compatible
+        )
         .sort(
           (first, second) =>
             money(first.SortOrder) - money(second.SortOrder)
