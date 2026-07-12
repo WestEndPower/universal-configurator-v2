@@ -220,9 +220,15 @@
       color: #fff;
     }
 
+    .button.success {
+      border-color: var(--success-color);
+      background: var(--success-color);
+      color: #fff;
+    }
+
     .product-summary {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 16px;
     }
@@ -259,8 +265,9 @@
       background: #fff;
     }
 
-    .product-row:hover {
-      border-color: var(--brand-primary);
+    .product-row.configured {
+      border-color: #a7d7b4;
+      background: #f6fff8;
     }
 
     .product-name {
@@ -274,6 +281,17 @@
       margin-top: 5px;
       color: var(--muted-text);
       font-size: 13px;
+    }
+
+    .configured-note {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: #e8f7ec;
+      color: var(--success-color);
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .product-price {
@@ -408,9 +426,19 @@
       font-weight: 900;
     }
 
+    .config-actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
     @media (max-width: 900px) {
       .filter-grid,
       .config-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .product-summary {
         grid-template-columns: 1fr 1fr;
       }
     }
@@ -568,10 +596,13 @@
         </div>
 
         <div class="summary-box">
-          <div class="summary-label">Data File</div>
-          <div class="summary-value" id="products-data-file" style="font-size:16px;">
-            —
-          </div>
+          <div class="summary-label">Configured Products</div>
+          <div class="summary-value" id="configured-products-count">0</div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-label">Configured Units</div>
+          <div class="summary-value" id="configured-units-count">0</div>
         </div>
       </div>
 
@@ -652,6 +683,24 @@
             <span>Configured Total</span>
             <strong id="config-total">$0.00</strong>
           </div>
+
+          <div class="config-actions">
+            <button
+              class="button success"
+              id="save-configuration"
+              type="button"
+            >
+              Save Configuration
+            </button>
+
+            <button
+              class="button"
+              id="remove-configuration"
+              type="button"
+            >
+              Remove Configuration
+            </button>
+          </div>
         </aside>
       </div>
     </section>
@@ -686,6 +735,7 @@
         productId: '',
         quantity: 1
       },
+      cart: {},
       startupErrors: []
     };
 
@@ -1008,31 +1058,7 @@
         ];
       }
 
-      const errors = [];
-
-      products.forEach((product, index) => {
-        const rowNumber = index + 2;
-
-        if (!clean(product.ProductID)) {
-          errors.push(
-            `products.csv row ${rowNumber}: ProductID is required.`
-          );
-        }
-
-        if (!clean(product.SKU)) {
-          errors.push(
-            `products.csv row ${rowNumber}: SKU is required.`
-          );
-        }
-
-        if (!clean(product.ProductName)) {
-          errors.push(
-            `products.csv row ${rowNumber}: ProductName is required.`
-          );
-        }
-      });
-
-      return errors;
+      return [];
     }
 
     function activeProducts() {
@@ -1051,6 +1077,22 @@
           clean(product.ProductID) ===
           clean(appState.selection.productId)
       ) || null;
+    }
+
+    function cartEntry(productId) {
+      return appState.cart[clean(productId)] || null;
+    }
+
+    function configuredProductsCount() {
+      return Object.keys(appState.cart).length;
+    }
+
+    function configuredUnitsCount() {
+      return Object.values(appState.cart).reduce(
+        (total, item) =>
+          total + positiveInteger(item.quantity, 1),
+        0
+      );
     }
 
     function uniqueValues(products, fieldName) {
@@ -1163,65 +1205,81 @@
       byId('products-active-count').textContent =
         String(active.length);
 
-      byId('products-data-file').textContent =
-        clean(appState.brand?.productDataPath) ||
-        'data/products.csv';
+      byId('configured-products-count').textContent =
+        String(configuredProductsCount());
+
+      byId('configured-units-count').textContent =
+        String(configuredUnitsCount());
 
       byId('result-count').textContent =
         `${products.length} product${products.length === 1 ? '' : 's'}`;
 
       byId('product-list').innerHTML =
         products.length
-          ? products.map(product => `
-              <article class="product-row">
-                <div>
-                  <h3 class="product-name">
-                    ${escapeHtml(product.ProductName)}
-                  </h3>
+          ? products.map(product => {
+              const saved = cartEntry(product.ProductID);
 
-                  <div class="product-meta">
-                    ${[
-                      product.BrandID,
-                      product.Model,
-                      product.SKU,
-                      product.Category,
-                      product.PowerType,
-                      product.System,
-                      product.Series
-                    ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
+              return `
+                <article class="product-row ${saved ? 'configured' : ''}">
+                  <div>
+                    <h3 class="product-name">
+                      ${escapeHtml(product.ProductName)}
+                    </h3>
+
+                    <div class="product-meta">
+                      ${[
+                        product.BrandID,
+                        product.Model,
+                        product.SKU,
+                        product.Category,
+                        product.PowerType,
+                        product.System,
+                        product.Series
+                      ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
+                    </div>
+
+                    ${
+                      clean(product.ShortDescription)
+                        ? `
+                          <div class="product-description">
+                            ${escapeHtml(product.ShortDescription)}
+                          </div>
+                        `
+                        : ''
+                    }
+
+                    ${
+                      saved
+                        ? `
+                          <div class="configured-note">
+                            Configured • Qty ${positiveInteger(saved.quantity, 1)} • ${formatMoney(saved.total)}
+                          </div>
+                        `
+                        : ''
+                    }
                   </div>
 
-                  ${
-                    clean(product.ShortDescription)
-                      ? `
-                        <div class="product-description">
-                          ${escapeHtml(product.ShortDescription)}
-                        </div>
-                      `
-                      : ''
-                  }
-                </div>
+                  <div class="product-price">
+                    ${formatMoney(productUnitPrice(product))}
 
-                <div class="product-price">
-                  ${formatMoney(productUnitPrice(product))}
+                    ${
+                      money(product.SalePrice) > 0
+                        ? `<small>MSRP ${formatMoney(product.MSRP)}</small>`
+                        : ''
+                    }
 
-                  ${
-                    money(product.SalePrice) > 0
-                      ? `<small>MSRP ${formatMoney(product.MSRP)}</small>`
-                      : ''
-                  }
-
-                  <button
-                    class="button primary select-product"
-                    type="button"
-                    data-product-id="${escapeHtml(product.ProductID)}"
-                    style="margin-top:10px;"
-                  >
-                    Configure
-                  </button>
-                </div>
-              </article>
-            `).join('')
+                    <button
+                      class="button ${saved ? 'success' : 'primary'} select-product"
+                      type="button"
+                      data-product-id="${escapeHtml(product.ProductID)}"
+                      style="margin-top:10px;"
+                    >
+                      ${saved ? 'Edit Configuration' : 'Configure'}
+                    </button>
+                  </div>
+                </article>
+              `;
+            }).join('')
           : `
               <div class="empty-state">
                 No products match the selected filters.
@@ -1307,13 +1365,21 @@
         formatMoney(
           productUnitPrice(product) * quantity
         );
+
+      byId('remove-configuration').hidden =
+        !cartEntry(product.ProductID);
     }
 
     function showProductConfiguration(productId) {
+      const saved = cartEntry(productId);
+
       appState.selection.productId =
         clean(productId);
 
-      appState.selection.quantity = 1;
+      appState.selection.quantity =
+        saved
+          ? positiveInteger(saved.quantity, 1)
+          : 1;
 
       renderSelectedProduct();
 
@@ -1327,6 +1393,8 @@
     }
 
     function showProductSearch() {
+      renderProducts();
+
       byId('product-config-card').hidden = true;
       byId('product-search-card').hidden = false;
 
@@ -1334,6 +1402,40 @@
         top: byId('product-search-card').offsetTop - 12,
         behavior: 'smooth'
       });
+    }
+
+    function saveConfiguration() {
+      const product = selectedProduct();
+
+      if (!product) {
+        return;
+      }
+
+      const quantity =
+        positiveInteger(appState.selection.quantity, 1);
+
+      appState.cart[clean(product.ProductID)] = {
+        productId: clean(product.ProductID),
+        quantity,
+        unitPrice: productUnitPrice(product),
+        total: productUnitPrice(product) * quantity
+      };
+
+      showProductSearch();
+    }
+
+    function removeConfiguration() {
+      const product = selectedProduct();
+
+      if (!product) {
+        return;
+      }
+
+      delete appState.cart[clean(product.ProductID)];
+
+      appState.selection.quantity = 1;
+
+      showProductSearch();
     }
 
     function readFiltersFromControls() {
@@ -1439,6 +1541,16 @@
 
           renderSelectedProduct();
         }
+      );
+
+      byId('save-configuration').addEventListener(
+        'click',
+        saveConfiguration
+      );
+
+      byId('remove-configuration').addEventListener(
+        'click',
+        removeConfiguration
       );
     }
 
