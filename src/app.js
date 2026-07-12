@@ -21,7 +21,8 @@
         relationships: [],
         dealerRules: [],
         promotions: [],
-        freightRules: []
+        freightRules: [],
+        financePrograms: []
       },
       filters: {
         keyword: '',
@@ -614,7 +615,7 @@
       );
     }
 
-    function runUniversalRules(items, calculatedTotals = {}, promotionEvaluation = null, freightEvaluation = null) {
+    function runUniversalRules(items, calculatedTotals = {}, promotionEvaluation = null, freightEvaluation = null, financeEvaluation = null) {
       const engineStarted = performance.now();
       const result = {
         engineVersion: '1.1',
@@ -751,14 +752,27 @@
         };
       });
 
-      timeStage('Finance', () => ({
-        stage: 'Finance', status: 'PASS', messages: ['No finance rules configured.']
-      }));
+      timeStage('Finance', () => {
+        const evaluation = financeEvaluation || {
+          status: 'NOT_CONFIGURED',
+          messages: ['Finance Engine is unavailable.'],
+          eligible: [], rejected: [], selected: null, adjustments: []
+        };
+        result.adjustments.push(...(evaluation.adjustments || []));
+        result.warnings.push(...(evaluation.warnings || []));
+        result.errors.push(...(evaluation.errors || []));
+        return {
+          stage: 'Finance',
+          status: evaluation.status || 'PASS',
+          messages: evaluation.messages || [],
+          details: evaluation
+        };
+      });
 
       result.performance.totalMs = performance.now() - engineStarted;
       result.statistics = {
         rulesExecuted: result.stages.length,
-        rulesPassed: result.stages.filter(stage => ['PASS','APPLIED'].includes(stage.status)).length,
+        rulesPassed: result.stages.filter(stage => ['PASS','APPLIED','AVAILABLE'].includes(stage.status)).length,
         rulesNotConfigured: result.stages.filter(stage => stage.status === 'NOT_CONFIGURED').length,
         rulesSkipped: result.stages.filter(stage => stage.status === 'SKIPPED').length,
         rulesFailed: result.stages.filter(stage => ['FAIL','BLOCKED'].includes(stage.status)).length,
@@ -812,6 +826,7 @@
           category: clean(product.Category),
           system: clean(product.System),
           freightGroup: clean(product.FreightGroup || product.DeliveryGroup || product.Category),
+          financingGroup: clean(product.FinancingGroup),
           brandId: clean(product.BrandID || appState.brand?.brandId),
           quantity,
           unitPrice: productLine.unitPrice,
@@ -900,6 +915,22 @@
       const freightCharge = Math.max(0, money(freightEvaluation.charge));
       const totalAfterFreight = adjustedSubtotal + freightCharge;
 
+      const financeEngine = window.UniversalCPQ?.registry?.getEngine('financing');
+      const selectedFinanceProgramId = clean(appState.financeSelection?.programId || appState.application?.defaultFinanceProgramID);
+      const financeEvaluation = financeEngine && typeof financeEngine.evaluate === 'function'
+        ? financeEngine.evaluate({
+            financePrograms: appState.data.financePrograms,
+            items,
+            totals: { productSubtotal, componentSubtotal, subtotal: adjustedSubtotal, freight: freightCharge, total: totalAfterFreight },
+            amountFinanced: totalAfterFreight,
+            selectedProgramId: selectedFinanceProgramId,
+            promotionApplied: Boolean(promotionEvaluation.applied?.length),
+            brand: appState.brand,
+            dealer: appState.dealer,
+            application: appState.application
+          })
+        : { status:'NOT_CONFIGURED', messages:['Finance Engine is unavailable.'], eligible:[], rejected:[], selected:null, adjustments:[], dealerFee:0, applicationFee:0 };
+
       const pricingMs = performance.now() - pricingStarted;
       const rules = runUniversalRules(items, {
         listSubtotal,
@@ -910,7 +941,7 @@
         subtotal: totalAfterFreight,
         preFreightSubtotal: adjustedSubtotal,
         freight: freightCharge
-      }, promotionEvaluation, freightEvaluation);
+      }, promotionEvaluation, freightEvaluation, financeEvaluation);
 
       appState.configuration = {
         schemaVersion: '1.3',
@@ -928,6 +959,7 @@
         },
         promotions: promotionEvaluation,
         freight: freightEvaluation,
+        finance: financeEvaluation,
         rules,
         totals: {
           productSubtotal,
@@ -937,6 +969,8 @@
           freight: freightCharge,
           promotions: promotionSavings,
           dealerPromotionFunding: money(promotionEvaluation.dealerFunding),
+          financeDealerFee: money(financeEvaluation.dealerFee),
+          financeApplicationFee: money(financeEvaluation.applicationFee),
           tax: 0,
           total: totalAfterFreight,
           listSubtotal,
@@ -2249,7 +2283,8 @@
           relationships: appState.data.relationships.length,
           dealerRules: appState.data.dealerRules.length,
           promotions: appState.data.promotions.length,
-          freightRules: appState.data.freightRules.length
+          freightRules: appState.data.freightRules.length,
+          financePrograms: appState.data.financePrograms.length
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2303,6 +2338,7 @@
       byId('diagnostic-dealer-rules').textContent = JSON.stringify({ loadedRules: appState.data.dealerRules, evaluation: (appState.configuration?.rules?.stages || []).find(stage => stage.stage === 'Dealer Rules')?.details || null }, null, 2);
       byId('diagnostic-promotions').textContent = JSON.stringify({ loadedPromotions: appState.data.promotions, evaluation: appState.configuration?.promotions || null }, null, 2);
       byId('diagnostic-freight').textContent = JSON.stringify({ loadedFreightRules: appState.data.freightRules, evaluation: appState.configuration?.freight || null }, null, 2);
+      byId('diagnostic-finance').textContent = JSON.stringify({ loadedFinancePrograms: appState.data.financePrograms, evaluation: appState.configuration?.finance || null }, null, 2);
 
       const performanceLines = [];
       const performanceData = appState.configuration?.performance;
@@ -2444,6 +2480,7 @@
         calculationTrace: pricingTrace,
         promotions: appState.configuration?.promotions || null,
         freight: appState.configuration?.freight || null,
+        finance: appState.configuration?.finance || null,
         health: buildHealthReport(),
         ruleTrace: rules,
         performance: {
@@ -2464,7 +2501,8 @@
           configuredItems: appState.configuration?.items?.length || 0,
           dealerRuleRows: appState.data.dealerRules.length,
           promotionRows: appState.data.promotions.length,
-          freightRuleRows: appState.data.freightRules.length
+          freightRuleRows: appState.data.freightRules.length,
+          financeProgramRows: appState.data.financePrograms.length
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2933,6 +2971,18 @@
 
 
 
+
+    async function loadFinancePrograms() {
+      const path = clean(appState.application?.financeProgramsDataPath) || 'data/finance-programs.csv';
+      try {
+        const rows = await loadDataFile('financePrograms', path);
+        console.log(`Loaded ${rows.length} finance program row(s): ${path}`);
+      } catch (error) {
+        appState.data.financePrograms = [];
+        console.info(`Finance programs not configured: ${path}`);
+      }
+    }
+
     async function loadFreightRules() {
       const path = clean(appState.application?.freightRulesDataPath) || 'data/freight-rules.csv';
       try {
@@ -3111,6 +3161,7 @@
         await loadChargers();
         await loadRelationships();
         await loadFreightRules();
+        await loadFinancePrograms();
         await loadPromotions();
         await loadDealerRules();
         await loadProducts();

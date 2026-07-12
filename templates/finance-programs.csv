@@ -1,0 +1,4 @@
+ProgramID,Active,Label,Type,APR,TermMonths,MinAmount,MaxAmount,DealerFeePercent,ApplicationFee,MinimumDown,FinancingGroup,BrandID,ProductID,SKU,Category,System,StartDate,EndDate,RequiresPromotion,RebateEligible,Priority,CustomerText,Notes
+FIN-0-12,T,0% for 12 Months,Finance,0,12,1000,10000,3,50,0,,,TEST-002,,Mowers,,2026-01-01,2026-12-31,F,T,10,0% APR for 12 months,Round test program
+FIN-599-36,T,5.99% for 36 Months,Finance,5.99,36,500,25000,1.5,0,0,,,,,,,2026-01-01,2026-12-31,F,T,20,5.99% APR for 36 months,General finance program
+FIN-B-48,T,0% for 48 Months,Finance,0,48,2000,20000,5,100,500,B-System,,,,B-System,2026-01-01,2026-12-31,F,F,5,0% APR for 48 months,B-System program with minimum down

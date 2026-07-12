@@ -1,13 +1,11 @@
-# Universal Configurator V3.3.0
+# Universal Configurator V3.4.0
 
-- Added data-driven Universal Freight Engine.
-- Added optional `data/freight-rules.csv` loader.
-- Added Fixed, Percent, Fixed Plus Percent, and No Charge rule types.
-- Added MSRP, selling price, and dealer-cost calculation bases.
-- Added quantity breaks, freight groups, delivery method, special order, minimum/maximum charges, and priorities.
-- Added Freight tab to CPQ Inspector.
-- Freight now flows through shared configuration totals and diagnostics export.
-- Added rules passed/applied, not configured, skipped, and failed/blocked statistics.
-- Added average, fastest, slowest, and median timing history.
-- Added top-level CPQ health report and commit-readiness result.
-- Live freight data is not included or overwritten; a starter template is included.
+- Added data-driven Universal Finance Engine.
+- Added optional `data/finance-programs.csv` loader.
+- Added eligibility by financed amount, brand, product, SKU, category, system, financing group, and date range.
+- Added APR, term, minimum down payment, application fee, and dealer fee calculations.
+- Added estimated monthly payment and total payment calculations.
+- Added eligible, rejected, selected, available, applied, and not-configured finance outcomes.
+- Added Finance tab to CPQ Inspector.
+- Added finance details to Rule Trace, shared configuration object, totals metadata, health report, and diagnostics export.
+- Live finance data is not included or overwritten; a starter template is included.
