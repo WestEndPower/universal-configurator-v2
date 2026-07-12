@@ -1,6 +1,6 @@
 {
   "applicationName": "Universal Equipment Configurator",
-  "applicationVersion": "3.0.0",
+  "applicationVersion": "3.1.0",
   "defaultBrandId": "",
   "defaultDealerId": "",
   "currency": "USD",
@@ -14,7 +14,7 @@
   "enableFleetPrograms": true,
   "enableTradeIns": true,
   "enableTaxExempt": true,
-  "dataVersion": "3.0",
+  "dataVersion": "3.1",
   "layout": {
     "compactMode": true,
     "invoiceStyle": true,
@@ -22,7 +22,7 @@
     "showImages": false
   },
   "cpq": {
-    "configurationSchemaVersion": "1.4",
+    "configurationSchemaVersion": "1.5",
     "singlePricingEngine": true,
     "calculationTrace": true,
     "universalRulesEngine": true,
@@ -30,9 +30,11 @@
     "inspectorTabs": true,
     "ruleTiming": true,
     "performanceInspector": true,
-    "diagnosticsExport": true
+    "diagnosticsExport": true,
+    "dealerRulesEngine": true
   },
-  "version": "3.0.0",
-  "cpqSchemaVersion": "1.4",
-  "architectureVersion": "3.0"
+  "version": "3.1.0",
+  "cpqSchemaVersion": "1.5",
+  "architectureVersion": "3.1",
+  "dealerRulesDataPath": "data/dealer-rules.csv"
 }

@@ -4,8 +4,8 @@
   const existing = global.UniversalCPQ || {};
 
   global.UniversalCPQ = Object.assign(existing, {
-    platformVersion: '3.0.0',
-    architectureVersion: '3.0',
+    platformVersion: '3.1.0',
+    architectureVersion: '3.1',
     core: existing.core || {},
     business: existing.business || {},
     ui: existing.ui || {},

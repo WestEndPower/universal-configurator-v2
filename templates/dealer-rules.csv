@@ -1,0 +1,5 @@
+RuleID,Active,DealerID,LocationID,BrandID,ProductID,SKU,Category,RuleType,Value,Severity,Message,Priority,StartDate,EndDate
+RULE-001,T,,,,,,,MINIMUM_PROFIT_AMOUNT,100,APPROVAL_REQUIRED,Minimum profit is $100.,10,,
+RULE-002,T,,,,,,,MINIMUM_MARGIN_PERCENT,10,WARNING,Minimum margin is 10 percent.,20,,
+RULE-003,T,,,,,,,MAXIMUM_DISCOUNT_AMOUNT,1000,APPROVAL_REQUIRED,Discount above $1000 requires approval.,30,,
+RULE-004,T,,,,,,,APPROVAL_BELOW_PROFIT,200,APPROVAL_REQUIRED,Manager approval required below $200 profit.,40,,
