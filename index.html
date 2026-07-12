@@ -432,6 +432,52 @@
       margin-top: 16px;
     }
 
+    .accessory-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .accessory-item {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .accessory-item input {
+      width: auto;
+      min-height: auto;
+      margin: 0;
+    }
+
+    .accessory-name {
+      font-weight: 900;
+    }
+
+    .accessory-meta {
+      margin-top: 3px;
+      color: var(--muted-text);
+      font-size: 12px;
+    }
+
+    .accessory-price {
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .accessory-empty {
+      padding: 14px;
+      border: 1px dashed var(--border-color);
+      border-radius: 8px;
+      color: var(--muted-text);
+      background: #fff;
+    }
+
 
     .configuration-header {
       display: flex;
@@ -623,6 +669,11 @@
           <div class="status-label">Products</div>
           <div class="status-value loading" id="status-products">Waiting...</div>
         </div>
+
+        <div class="status-row">
+          <div class="status-label">Accessories</div>
+          <div class="status-value loading" id="status-accessories">Waiting...</div>
+        </div>
       </div>
 
       <div class="error-panel" id="error-panel"></div>
@@ -778,6 +829,11 @@
           <div id="config-description" class="product-description"></div>
 
           <div class="spec-grid" id="config-specs"></div>
+
+          <div style="margin-top:18px;">
+            <h3>Available Accessories</h3>
+            <div class="accessory-list" id="config-accessories"></div>
+          </div>
         </div>
 
         <aside class="price-panel">
@@ -791,6 +847,11 @@
           <div class="price-line">
             <span>Unit Price</span>
             <strong id="config-unit-price">$0.00</strong>
+          </div>
+
+          <div class="price-line">
+            <span>Accessories</span>
+            <strong id="config-accessories-total">$0.00</strong>
           </div>
 
           <div class="quantity-control">
@@ -869,7 +930,8 @@
       brand: null,
       tax: null,
       data: {
-        products: []
+        products: [],
+        accessories: []
       },
       filters: {
         keyword: '',
@@ -880,7 +942,8 @@
       },
       selection: {
         productId: '',
-        quantity: 1
+        quantity: 1,
+        accessoryIds: []
       },
       cart: {},
       startupErrors: []
@@ -1399,6 +1462,28 @@
                     product.Category
                   ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
                 </div>
+
+                ${
+                  Array.isArray(item.accessoryIds) && item.accessoryIds.length
+                    ? `
+                      <div class="configuration-line-meta">
+                        Accessories: ${
+                          item.accessoryIds.map(id => {
+                            const accessory =
+                              appState.data.accessories.find(
+                                row =>
+                                  clean(row.AccessoryID) === clean(id)
+                              );
+
+                            return accessory
+                              ? escapeHtml(accessory.AccessoryName)
+                              : escapeHtml(id);
+                          }).join(', ')
+                        }
+                      </div>
+                    `
+                    : ''
+                }
               </div>
 
               <div class="configuration-line-total">
@@ -1530,6 +1615,57 @@
       renderCurrentConfiguration();
     }
 
+    function accessoriesForProduct(product) {
+      if (!product) {
+        return [];
+      }
+
+      const productId = clean(product.ProductID);
+      const sku = clean(product.SKU);
+      const category = clean(product.Category);
+
+      return appState.data.accessories
+        .filter(accessory => isTrue(accessory.Active))
+        .filter(accessory => {
+          const appliesToProductId = clean(accessory.AppliesToProductID);
+          const appliesToSKU = clean(accessory.AppliesToSKU);
+          const appliesToCategory = clean(accessory.AppliesToCategory);
+
+          return (
+            (!appliesToProductId && !appliesToSKU && !appliesToCategory) ||
+            (appliesToProductId && appliesToProductId === productId) ||
+            (appliesToSKU && appliesToSKU === sku) ||
+            (appliesToCategory && appliesToCategory === category)
+          );
+        })
+        .sort(
+          (first, second) =>
+            money(first.SortOrder) - money(second.SortOrder)
+        );
+    }
+
+    function selectedAccessoryRecords() {
+      const ids = new Set(
+        appState.selection.accessoryIds.map(clean)
+      );
+
+      return appState.data.accessories.filter(
+        accessory => ids.has(clean(accessory.AccessoryID))
+      );
+    }
+
+    function accessoriesUnitTotal() {
+      return selectedAccessoryRecords().reduce(
+        (total, accessory) =>
+          total + money(accessory.Price),
+        0
+      );
+    }
+
+    function configurationUnitTotal(product) {
+      return productUnitPrice(product) + accessoriesUnitTotal();
+    }
+
     function renderSelectedProduct() {
       const product = selectedProduct();
 
@@ -1599,12 +1735,63 @@
       byId('config-unit-price').textContent =
         formatMoney(productUnitPrice(product));
 
+      const availableAccessories =
+        accessoriesForProduct(product);
+
+      byId('config-accessories').innerHTML =
+        availableAccessories.length
+          ? availableAccessories.map(accessory => {
+              const accessoryId =
+                clean(accessory.AccessoryID);
+
+              const checked =
+                appState.selection.accessoryIds
+                  .map(clean)
+                  .includes(accessoryId);
+
+              return `
+                <label class="accessory-item">
+                  <input
+                    type="checkbox"
+                    class="config-accessory-checkbox"
+                    value="${escapeHtml(accessoryId)}"
+                    ${checked ? 'checked' : ''}
+                  >
+
+                  <span>
+                    <span class="accessory-name">
+                      ${escapeHtml(accessory.AccessoryName)}
+                    </span>
+
+                    <span class="accessory-meta">
+                      ${[
+                        accessory.SKU,
+                        accessory.Description
+                      ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
+                    </span>
+                  </span>
+
+                  <span class="accessory-price">
+                    ${formatMoney(accessory.Price)}
+                  </span>
+                </label>
+              `;
+            }).join('')
+          : `
+              <div class="accessory-empty">
+                No accessories are available for this product.
+              </div>
+            `;
+
+      byId('config-accessories-total').textContent =
+        formatMoney(accessoriesUnitTotal());
+
       byId('config-quantity').value =
         String(quantity);
 
       byId('config-total').textContent =
         formatMoney(
-          productUnitPrice(product) * quantity
+          configurationUnitTotal(product) * quantity
         );
 
       byId('remove-configuration').hidden =
@@ -1621,6 +1808,11 @@
         saved
           ? positiveInteger(saved.quantity, 1)
           : 1;
+
+      appState.selection.accessoryIds =
+        saved && Array.isArray(saved.accessoryIds)
+          ? [...saved.accessoryIds]
+          : [];
 
       renderSelectedProduct();
 
@@ -1659,7 +1851,9 @@
         productId: clean(product.ProductID),
         quantity,
         unitPrice: productUnitPrice(product),
-        total: productUnitPrice(product) * quantity
+        accessoryIds: [...appState.selection.accessoryIds],
+        accessoryUnitTotal: accessoriesUnitTotal(),
+        total: configurationUnitTotal(product) * quantity
       };
 
       showProductSearch();
@@ -1804,6 +1998,33 @@
         }
       );
 
+      byId('config-accessories').addEventListener(
+        'change',
+        event => {
+          const checkbox =
+            event.target.closest('.config-accessory-checkbox');
+
+          if (!checkbox) {
+            return;
+          }
+
+          const id = clean(checkbox.value);
+
+          if (checkbox.checked) {
+            if (!appState.selection.accessoryIds.includes(id)) {
+              appState.selection.accessoryIds.push(id);
+            }
+          } else {
+            appState.selection.accessoryIds =
+              appState.selection.accessoryIds.filter(
+                accessoryId => clean(accessoryId) !== id
+              );
+          }
+
+          renderSelectedProduct();
+        }
+      );
+
       byId('save-configuration').addEventListener(
         'click',
         saveConfiguration
@@ -1847,6 +2068,39 @@
           }
         }
       );
+    }
+
+    async function loadAccessories() {
+      const accessoryPath =
+        clean(appState.brand?.accessoryDataPath) ||
+        'data/accessories.csv';
+
+      try {
+        const accessories =
+          await loadDataFile(
+            'accessories',
+            accessoryPath
+          );
+
+        setStatus(
+          'accessories',
+          `Loaded ${accessories.length} row(s): ${accessoryPath}`,
+          'success'
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : String(error);
+
+        appState.startupErrors.push(message);
+
+        setStatus(
+          'accessories',
+          message,
+          'error'
+        );
+      }
     }
 
     async function loadProducts() {
@@ -1988,6 +2242,7 @@
       renderApplicationIdentity();
 
       if (appState.brand) {
+        await loadAccessories();
         await loadProducts();
       }
 
