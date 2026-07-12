@@ -1,15 +1,15 @@
-UNIVERSAL CONFIGURATOR V2.17.2 UPDATE
+Universal Configurator V3.0.0 Modular Foundation
 
-Install over the tested V2.17.1 project.
+Install over the tested V2.17.2 project using VS Code Live Server.
 
-Adds:
-- Export Diagnostics button in CPQ Inspector
-- Timestamped JSON diagnostic snapshot
-- Configuration and calculation trace export
-- Rule trace and rule statistics export
-- Current and historical performance export
-- Catalog and loaded-row statistics export
-- Startup error export
+V3.0.0 is a structural refactor only. Existing data files, dealer settings,
+compatibility, pricing, rules, diagnostics, and saved configuration behavior
+remain unchanged.
 
-The export is generated from the current browser session.
-It does not edit CSV files or include/overwrite dealer settings.
+New source layout:
+  src/app.js                  Existing tested application behavior
+  src/core/platform.js        UniversalCPQ namespace and engine registry
+  src/core/adapters.js        Stable access to core engines
+  src/business/*.js           Data-driven business engine extension points
+
+Dealer settings are not included and are never overwritten.
