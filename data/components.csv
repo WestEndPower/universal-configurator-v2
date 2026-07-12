@@ -1,0 +1,8 @@
+﻿ComponentID,BrandID,ComponentType,SKU,ComponentName,Description,Price,DealerCost,AppliesToProductID,AppliesToSKU,AppliesToCategory,Taxable,FinancingEligible,SpecialFinancingEligible,RebateEligible,DiscountEligible,FleetEligible,BidEligible,FreightEligible,FreightGroup,Required,Active,SortOrder
+CMP-001,test-brand,Accessory,OEM-COVER,OEM Mower Cover,OEM accessory eligible for promotional financing.,89.99,55.00,TEST-002,,,T,T,T,T,T,T,T,F,,F,T,1
+CMP-002,aftermarket,Accessory,AM-HITCH,Aftermarket Utility Hitch,Aftermarket accessory excluded from special promotional financing.,199.99,120.00,TEST-002,,,T,T,F,F,T,F,F,F,,F,T,2
+CMP-003,test-brand,ExtendedWarranty,WAR-48,48-Month Extended Warranty,Extended warranty eligible for standard financing only.,349.00,250.00,TEST-002,,,F,T,F,F,F,F,F,F,,F,T,3
+CMP-004,aftermarket,Part,PART-001,Replacement Wear-Part Kit,Aftermarket parts package not eligible for financing.,79.99,45.00,TEST-002,,,T,F,F,F,T,F,F,F,,F,T,4
+CMP-005,test-brand,Freight,FRT-ZT,Factory Freight Charge,Factory freight charge associated with the product.,200.00,200.00,TEST-002,,,T,T,F,F,F,F,F,T,zero-turn,F,T,5
+CMP-006,test-brand,Surcharge,SUR-STEEL,Material Surcharge,Temporary manufacturer surcharge.,125.00,125.00,TEST-002,,,T,T,F,F,F,F,F,F,,F,T,6
+CMP-007,test-brand,Accessory,SAFE-001,Universal Safety Kit,General safety accessory available for every product.,39.99,20.00,,,,,T,T,F,F,T,F,F,F,,F,T,7

@@ -432,13 +432,13 @@
       margin-top: 16px;
     }
 
-    .accessory-list {
+    .component-list {
       display: grid;
       gap: 10px;
       margin-top: 14px;
     }
 
-    .accessory-item {
+    .component-item {
       display: grid;
       grid-template-columns: 28px minmax(0, 1fr) auto;
       gap: 10px;
@@ -449,33 +449,60 @@
       background: #fff;
     }
 
-    .accessory-item input {
+    .component-item input {
       width: auto;
       min-height: auto;
       margin: 0;
     }
 
-    .accessory-name {
+    .component-name {
       font-weight: 900;
     }
 
-    .accessory-meta {
+    .component-meta {
       margin-top: 3px;
       color: var(--muted-text);
       font-size: 12px;
     }
 
-    .accessory-price {
+    .component-price {
       font-weight: 900;
       white-space: nowrap;
     }
 
-    .accessory-empty {
+    .component-empty {
       padding: 14px;
       border: 1px dashed var(--border-color);
       border-radius: 8px;
       color: var(--muted-text);
       background: #fff;
+    }
+
+    .component-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 6px;
+    }
+
+    .component-badge {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 999px;
+      background: #f2f4f7;
+      color: #344054;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .component-badge.eligible {
+      background: #e8f7ec;
+      color: var(--success-color);
+    }
+
+    .component-badge.excluded {
+      background: #fff1f0;
+      color: var(--error-color);
     }
 
 
@@ -671,8 +698,8 @@
         </div>
 
         <div class="status-row">
-          <div class="status-label">Accessories</div>
-          <div class="status-value loading" id="status-accessories">Waiting...</div>
+          <div class="status-label">Components</div>
+          <div class="status-value loading" id="status-components">Waiting...</div>
         </div>
       </div>
 
@@ -831,8 +858,8 @@
           <div class="spec-grid" id="config-specs"></div>
 
           <div style="margin-top:18px;">
-            <h3>Available Accessories</h3>
-            <div class="accessory-list" id="config-accessories"></div>
+            <h3>Available Components</h3>
+            <div class="component-list" id="config-components"></div>
           </div>
         </div>
 
@@ -850,8 +877,23 @@
           </div>
 
           <div class="price-line">
-            <span>Accessories</span>
-            <strong id="config-accessories-total">$0.00</strong>
+            <span>Selected Components</span>
+            <strong id="config-components-total">$0.00</strong>
+          </div>
+
+          <div class="price-line">
+            <span>Special Financing Eligible</span>
+            <strong id="config-special-finance-total">$0.00</strong>
+          </div>
+
+          <div class="price-line">
+            <span>Standard Financing Only</span>
+            <strong id="config-standard-finance-total">$0.00</strong>
+          </div>
+
+          <div class="price-line">
+            <span>Non-Financeable</span>
+            <strong id="config-nonfinance-total">$0.00</strong>
           </div>
 
           <div class="quantity-control">
@@ -931,7 +973,7 @@
       tax: null,
       data: {
         products: [],
-        accessories: []
+        components: []
       },
       filters: {
         keyword: '',
@@ -943,7 +985,7 @@
       selection: {
         productId: '',
         quantity: 1,
-        accessoryIds: []
+        componentIds: []
       },
       cart: {},
       startupErrors: []
@@ -1464,19 +1506,19 @@
                 </div>
 
                 ${
-                  Array.isArray(item.accessoryIds) && item.accessoryIds.length
+                  Array.isArray(item.componentIds) && item.componentIds.length
                     ? `
                       <div class="configuration-line-meta">
-                        Accessories: ${
-                          item.accessoryIds.map(id => {
-                            const accessory =
-                              appState.data.accessories.find(
+                        Components: ${
+                          item.componentIds.map(id => {
+                            const component =
+                              appState.data.components.find(
                                 row =>
-                                  clean(row.AccessoryID) === clean(id)
+                                  clean(row.ComponentID) === clean(id)
                               );
 
-                            return accessory
-                              ? escapeHtml(accessory.AccessoryName)
+                            return component
+                              ? escapeHtml(component.ComponentName)
                               : escapeHtml(id);
                           }).join(', ')
                         }
@@ -1615,7 +1657,7 @@
       renderCurrentConfiguration();
     }
 
-    function accessoriesForProduct(product) {
+    function componentsForProduct(product) {
       if (!product) {
         return [];
       }
@@ -1624,12 +1666,12 @@
       const sku = clean(product.SKU);
       const category = clean(product.Category);
 
-      return appState.data.accessories
-        .filter(accessory => isTrue(accessory.Active))
-        .filter(accessory => {
-          const appliesToProductId = clean(accessory.AppliesToProductID);
-          const appliesToSKU = clean(accessory.AppliesToSKU);
-          const appliesToCategory = clean(accessory.AppliesToCategory);
+      return appState.data.components
+        .filter(component => isTrue(component.Active))
+        .filter(component => {
+          const appliesToProductId = clean(component.AppliesToProductID);
+          const appliesToSKU = clean(component.AppliesToSKU);
+          const appliesToCategory = clean(component.AppliesToCategory);
 
           return (
             (!appliesToProductId && !appliesToSKU && !appliesToCategory) ||
@@ -1644,26 +1686,66 @@
         );
     }
 
-    function selectedAccessoryRecords() {
+    function selectedComponentRecords() {
       const ids = new Set(
-        appState.selection.accessoryIds.map(clean)
+        appState.selection.componentIds.map(clean)
       );
 
-      return appState.data.accessories.filter(
-        accessory => ids.has(clean(accessory.AccessoryID))
+      return appState.data.components.filter(
+        component => ids.has(clean(component.ComponentID))
       );
     }
 
-    function accessoriesUnitTotal() {
-      return selectedAccessoryRecords().reduce(
-        (total, accessory) =>
-          total + money(accessory.Price),
+    function componentsUnitTotal() {
+      return selectedComponentRecords().reduce(
+        (total, component) =>
+          total + money(component.Price),
         0
       );
     }
 
     function configurationUnitTotal(product) {
-      return productUnitPrice(product) + accessoriesUnitTotal();
+      return productUnitPrice(product) + componentsUnitTotal();
+    }
+
+    function financingBreakdown(product) {
+      const quantity =
+        positiveInteger(appState.selection.quantity, 1);
+
+      let specialEligible =
+        isTrue(product.SpecialFinancingEligible)
+          ? productUnitPrice(product) * quantity
+          : 0;
+
+      let standardOnly =
+        !isTrue(product.SpecialFinancingEligible) &&
+        isTrue(product.FinancingEligible)
+          ? productUnitPrice(product) * quantity
+          : 0;
+
+      let nonFinanceable =
+        !isTrue(product.FinancingEligible)
+          ? productUnitPrice(product) * quantity
+          : 0;
+
+      selectedComponentRecords().forEach(component => {
+        const lineAmount =
+          money(component.Price) * quantity;
+
+        if (isTrue(component.SpecialFinancingEligible)) {
+          specialEligible += lineAmount;
+        } else if (isTrue(component.FinancingEligible)) {
+          standardOnly += lineAmount;
+        } else {
+          nonFinanceable += lineAmount;
+        }
+      });
+
+      return {
+        specialEligible,
+        standardOnly,
+        nonFinanceable
+      };
     }
 
     function renderSelectedProduct() {
@@ -1735,56 +1817,97 @@
       byId('config-unit-price').textContent =
         formatMoney(productUnitPrice(product));
 
-      const availableAccessories =
-        accessoriesForProduct(product);
+      const availableComponents =
+        componentsForProduct(product);
 
-      byId('config-accessories').innerHTML =
-        availableAccessories.length
-          ? availableAccessories.map(accessory => {
-              const accessoryId =
-                clean(accessory.AccessoryID);
+      byId('config-components').innerHTML =
+        availableComponents.length
+          ? availableComponents.map(component => {
+              const componentId =
+                clean(component.ComponentID);
 
               const checked =
-                appState.selection.accessoryIds
+                appState.selection.componentIds
                   .map(clean)
-                  .includes(accessoryId);
+                  .includes(componentId);
 
               return `
-                <label class="accessory-item">
+                <label class="component-item">
                   <input
                     type="checkbox"
-                    class="config-accessory-checkbox"
-                    value="${escapeHtml(accessoryId)}"
+                    class="config-component-checkbox"
+                    value="${escapeHtml(componentId)}"
                     ${checked ? 'checked' : ''}
                   >
 
                   <span>
-                    <span class="accessory-name">
-                      ${escapeHtml(accessory.AccessoryName)}
+                    <span class="component-name">
+                      ${escapeHtml(component.ComponentName)}
                     </span>
 
-                    <span class="accessory-meta">
+                    <span class="component-meta">
                       ${[
-                        accessory.SKU,
-                        accessory.Description
+                        component.ComponentType,
+                        component.SKU,
+                        component.Description
                       ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
+                    </span>
+
+                    <span class="component-badges">
+                      <span class="component-badge">
+                        ${escapeHtml(component.ComponentType)}
+                      </span>
+
+                      <span class="component-badge ${
+                        isTrue(component.SpecialFinancingEligible)
+                          ? 'eligible'
+                          : 'excluded'
+                      }">
+                        ${
+                          isTrue(component.SpecialFinancingEligible)
+                            ? 'Special Financing'
+                            : (
+                                isTrue(component.FinancingEligible)
+                                  ? 'Standard Financing Only'
+                                  : 'Not Financeable'
+                              )
+                        }
+                      </span>
+
+                      ${
+                        isTrue(component.RebateEligible)
+                          ? '<span class="component-badge eligible">Rebate Eligible</span>'
+                          : '<span class="component-badge excluded">No Rebate</span>'
+                      }
                     </span>
                   </span>
 
-                  <span class="accessory-price">
-                    ${formatMoney(accessory.Price)}
+                  <span class="component-price">
+                    ${formatMoney(component.Price)}
                   </span>
                 </label>
               `;
             }).join('')
           : `
-              <div class="accessory-empty">
-                No accessories are available for this product.
+              <div class="component-empty">
+                No components are available for this product.
               </div>
             `;
 
-      byId('config-accessories-total').textContent =
-        formatMoney(accessoriesUnitTotal());
+      byId('config-components-total').textContent =
+        formatMoney(componentsUnitTotal());
+
+      const financeTotals =
+        financingBreakdown(product);
+
+      byId('config-special-finance-total').textContent =
+        formatMoney(financeTotals.specialEligible);
+
+      byId('config-standard-finance-total').textContent =
+        formatMoney(financeTotals.standardOnly);
+
+      byId('config-nonfinance-total').textContent =
+        formatMoney(financeTotals.nonFinanceable);
 
       byId('config-quantity').value =
         String(quantity);
@@ -1809,9 +1932,9 @@
           ? positiveInteger(saved.quantity, 1)
           : 1;
 
-      appState.selection.accessoryIds =
-        saved && Array.isArray(saved.accessoryIds)
-          ? [...saved.accessoryIds]
+      appState.selection.componentIds =
+        saved && Array.isArray(saved.componentIds)
+          ? [...saved.componentIds]
           : [];
 
       renderSelectedProduct();
@@ -1851,8 +1974,8 @@
         productId: clean(product.ProductID),
         quantity,
         unitPrice: productUnitPrice(product),
-        accessoryIds: [...appState.selection.accessoryIds],
-        accessoryUnitTotal: accessoriesUnitTotal(),
+        componentIds: [...appState.selection.componentIds],
+        componentUnitTotal: componentsUnitTotal(),
         total: configurationUnitTotal(product) * quantity
       };
 
@@ -1998,11 +2121,11 @@
         }
       );
 
-      byId('config-accessories').addEventListener(
+      byId('config-components').addEventListener(
         'change',
         event => {
           const checkbox =
-            event.target.closest('.config-accessory-checkbox');
+            event.target.closest('.config-component-checkbox');
 
           if (!checkbox) {
             return;
@@ -2011,13 +2134,13 @@
           const id = clean(checkbox.value);
 
           if (checkbox.checked) {
-            if (!appState.selection.accessoryIds.includes(id)) {
-              appState.selection.accessoryIds.push(id);
+            if (!appState.selection.componentIds.includes(id)) {
+              appState.selection.componentIds.push(id);
             }
           } else {
-            appState.selection.accessoryIds =
-              appState.selection.accessoryIds.filter(
-                accessoryId => clean(accessoryId) !== id
+            appState.selection.componentIds =
+              appState.selection.componentIds.filter(
+                componentId => clean(componentId) !== id
               );
           }
 
@@ -2070,21 +2193,21 @@
       );
     }
 
-    async function loadAccessories() {
-      const accessoryPath =
-        clean(appState.brand?.accessoryDataPath) ||
-        'data/accessories.csv';
+    async function loadComponents() {
+      const componentPath =
+        clean(appState.brand?.componentDataPath) ||
+        'data/components.csv';
 
       try {
-        const accessories =
+        const components =
           await loadDataFile(
-            'accessories',
-            accessoryPath
+            'components',
+            componentPath
           );
 
         setStatus(
-          'accessories',
-          `Loaded ${accessories.length} row(s): ${accessoryPath}`,
+          'components',
+          `Loaded ${components.length} row(s): ${componentPath}`,
           'success'
         );
       } catch (error) {
@@ -2096,7 +2219,7 @@
         appState.startupErrors.push(message);
 
         setStatus(
-          'accessories',
+          'components',
           message,
           'error'
         );
@@ -2242,7 +2365,7 @@
       renderApplicationIdentity();
 
       if (appState.brand) {
-        await loadAccessories();
+        await loadComponents();
         await loadProducts();
       }
 
