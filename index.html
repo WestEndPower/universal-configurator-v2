@@ -813,7 +813,14 @@
     }
     .quote-form-grid .span-2 { grid-column: span 2; }
     .quote-form-grid .span-4 { grid-column: 1 / -1; }
-    .quote-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
+    .quote-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; flex-wrap:wrap; }
+    .saved-quotes { margin-top:18px; border-top:1px solid var(--border-color); padding-top:14px; }
+    .saved-quotes table { width:100%; border-collapse:collapse; font-size:13px; }
+    .saved-quotes th,.saved-quotes td { padding:9px 8px; border-bottom:1px solid var(--border-color); text-align:left; }
+    .saved-quotes th { font-size:11px; text-transform:uppercase; color:#666; }
+    .saved-quotes .num { text-align:right; white-space:nowrap; }
+    .saved-quote-actions { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
+    .saved-quote-empty { color:#666; padding:10px 0; }
     textarea { width:100%; min-height:72px; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font:inherit; }
     @media (max-width: 760px) {
       .quote-form-grid { grid-template-columns: 1fr 1fr; }
@@ -843,7 +850,7 @@
           </button>
 
           <div class="version-badge" id="version-badge">
-            Version 3.5.4
+            Version 3.6.0
           </div>
         </div>
       </div>
@@ -1152,7 +1159,15 @@
           <div class="span-4"><label for="quote-notes">Notes</label><textarea id="quote-notes" placeholder="Optional quote notes"></textarea></div>
           <div class="span-4"><label for="quote-terms">Terms</label><textarea id="quote-terms" placeholder="Optional terms and conditions"></textarea></div>
         </div>
-        <div class="quote-actions"><button class="button primary" id="preview-quote" type="button">Preview / Print Quote</button></div>
+        <div class="quote-actions">
+          <button class="button" id="new-quote" type="button">New Quote</button>
+          <button class="button" id="save-quote" type="button">Save Quote</button>
+          <button class="button primary" id="preview-quote" type="button">Preview / Print Quote</button>
+        </div>
+        <div class="saved-quotes">
+          <h3 style="margin:0 0 10px;">Saved Quotes</h3>
+          <div id="saved-quotes-list" class="saved-quote-empty">No saved quotes.</div>
+        </div>
       </div>
     </section>
 

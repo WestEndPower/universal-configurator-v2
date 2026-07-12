@@ -55,7 +55,8 @@
         customer: {},
         preparedBy: '',
         validThrough: '',
-        terms: ''
+        terms: '',
+        quoteNumber: ''
       },
       developer: {
         panelOpen: false,
@@ -2345,7 +2346,7 @@
       byId('diagnostic-promotions').textContent = JSON.stringify({ loadedPromotions: appState.data.promotions, evaluation: appState.configuration?.promotions || null }, null, 2);
       byId('diagnostic-freight').textContent = JSON.stringify({ loadedFreightRules: appState.data.freightRules, evaluation: appState.configuration?.freight || null }, null, 2);
       byId('diagnostic-finance').textContent = JSON.stringify({ loadedFinancePrograms: appState.data.financePrograms, evaluation: appState.configuration?.finance || null }, null, 2);
-      byId('diagnostic-documents').textContent = JSON.stringify({ engine: window.UniversalCPQ?.registry?.getEngine('documents')?.name || 'Unavailable', currentQuote: appState.configuration?.items?.length ? buildCurrentQuote() : null }, null, 2);
+      byId('diagnostic-documents').textContent = JSON.stringify({ engine: window.UniversalCPQ?.registry?.getEngine('documents')?.name || 'Unavailable', currentQuote: appState.configuration?.items?.length ? buildCurrentQuote() : null, savedQuotes: savedQuoteEngine()?.listQuotes?.() || [] }, null, 2);
 
       const performanceLines = [];
       const performanceData = appState.configuration?.performance;
@@ -2510,7 +2511,8 @@
           dealerRuleRows: appState.data.dealerRules.length,
           promotionRows: appState.data.promotions.length,
           freightRuleRows: appState.data.freightRules.length,
-          financeProgramRows: appState.data.financePrograms.length
+          financeProgramRows: appState.data.financePrograms.length,
+          savedQuoteCount: savedQuoteEngine()?.listQuotes?.().length || 0
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2560,6 +2562,7 @@
 
     function readQuoteForm() {
       const field = id => clean(byId(id)?.value);
+      const existingQuoteNumber = clean(appState.quote?.quoteNumber);
       appState.quote = {
         customer: {
           name: field('quote-customer-name'),
@@ -2574,7 +2577,8 @@
         },
         preparedBy: field('quote-prepared-by'),
         validThrough: field('quote-valid-through'),
-        terms: field('quote-terms')
+        terms: field('quote-terms'),
+        quoteNumber: existingQuoteNumber
       };
       return appState.quote;
     }
@@ -2593,8 +2597,126 @@
         terms: form.terms,
         dealer: appState.dealer,
         brand: appState.brand,
-        application: appState.application
+        application: appState.application,
+        quoteNumber: appState.quote.quoteNumber
       });
+    }
+
+
+    function writeQuoteForm(quote = {}) {
+      const customer = quote.customer || {};
+      const set = (id, value) => { const element = byId(id); if (element) element.value = clean(value); };
+      set('quote-prepared-by', quote.preparedBy);
+      set('quote-valid-through', quote.validThrough);
+      set('quote-customer-name', customer.name);
+      set('quote-business-name', customer.business);
+      set('quote-phone', customer.phone);
+      set('quote-email', customer.email);
+      set('quote-address', customer.address);
+      set('quote-city', customer.city);
+      set('quote-state', customer.state);
+      set('quote-zip', customer.zip);
+      set('quote-notes', customer.notes);
+      set('quote-terms', quote.terms);
+    }
+
+    function savedQuoteEngine() {
+      return window.UniversalCPQ?.registry?.getEngine('documents');
+    }
+
+    function renderSavedQuotes() {
+      const target = byId('saved-quotes-list');
+      if (!target) return;
+      const engine = savedQuoteEngine();
+      const quotes = engine?.listQuotes?.() || [];
+      if (!quotes.length) {
+        target.className = 'saved-quote-empty';
+        target.textContent = 'No saved quotes.';
+        return;
+      }
+      target.className = '';
+      target.innerHTML = `<table><thead><tr><th>Quote</th><th>Customer</th><th>Date</th><th class="num">Total</th><th></th></tr></thead><tbody>${quotes.map(quote => {
+        const customer = clean(quote.customer?.business || quote.customer?.name) || 'Not provided';
+        const date = quote.updatedAt || quote.createdAt;
+        return `<tr><td><strong>${escapeHtml(quote.quoteNumber)}</strong></td><td>${escapeHtml(customer)}</td><td>${escapeHtml(date ? new Date(date).toLocaleDateString() : '')}</td><td class="num">${formatMoney(quote.totals?.total)}</td><td><div class="saved-quote-actions"><button class="button reopen-saved-quote" type="button" data-quote-number="${escapeHtml(quote.quoteNumber)}">Open</button><button class="button delete-saved-quote" type="button" data-quote-number="${escapeHtml(quote.quoteNumber)}">Delete</button></div></td></tr>`;
+      }).join('')}</tbody></table>`;
+    }
+
+    function saveCurrentQuote() {
+      calculateConfiguration();
+      if (!appState.configuration?.items?.length) {
+        window.alert('Add at least one configured product before saving a quote.');
+        return;
+      }
+      try {
+        const engine = savedQuoteEngine();
+        const quote = buildCurrentQuote();
+        const saved = engine.saveQuote(quote);
+        appState.quote.quoteNumber = saved.quoteNumber;
+        renderSavedQuotes();
+        window.alert(`${saved.quoteNumber} saved.`);
+      } catch (error) {
+        console.error(error);
+        window.alert(error instanceof Error ? error.message : String(error));
+      }
+    }
+
+    function restoreSavedQuote(quoteNumber) {
+      const engine = savedQuoteEngine();
+      const quote = engine?.getQuote?.(quoteNumber);
+      if (!quote) {
+        window.alert('Saved quote could not be found.');
+        return;
+      }
+      appState.cart = {};
+      (quote.items || []).forEach(item => {
+        const productId = clean(item.productId);
+        if (!productId) return;
+        const productQuantity = positiveInteger(item.quantity, 1);
+        const componentIds = (item.components || []).map(component => clean(component.componentId)).filter(Boolean);
+        const componentQuantities = {};
+        (item.components || []).forEach(component => {
+          const id = clean(component.componentId);
+          if (!id) return;
+          componentQuantities[id] = Math.max(1, Math.round(money(component.quantity) / productQuantity));
+        });
+        appState.cart[productId] = {
+          productId,
+          quantity: productQuantity,
+          unitPrice: money(item.unitPrice),
+          componentIds,
+          componentQuantities,
+          componentUnitTotal: productQuantity ? money(item.componentTotal) / productQuantity : 0,
+          total: money(item.lineTotal)
+        };
+      });
+      appState.quote = {
+        customer: { ...(quote.customer || {}) },
+        preparedBy: clean(quote.preparedBy),
+        validThrough: clean(quote.validThrough),
+        terms: clean(quote.terms),
+        quoteNumber: clean(quote.quoteNumber)
+      };
+      writeQuoteForm(quote);
+      calculateConfiguration();
+      showProductSearch();
+      renderSavedQuotes();
+      byId('current-configuration-card')?.scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+
+    function deleteSavedQuote(quoteNumber) {
+      if (!window.confirm(`Delete saved quote ${quoteNumber}?`)) return;
+      savedQuoteEngine()?.deleteQuote?.(quoteNumber);
+      if (appState.quote.quoteNumber === quoteNumber) appState.quote.quoteNumber = '';
+      renderSavedQuotes();
+    }
+
+    function newQuote() {
+      appState.cart = {};
+      appState.quote = { customer:{}, preparedBy:'', validThrough:'', terms:'', quoteNumber:'' };
+      writeQuoteForm({});
+      calculateConfiguration();
+      showProductSearch();
     }
 
     function previewQuote() {
@@ -2835,6 +2957,14 @@
       );
 
       byId('preview-quote').addEventListener('click', previewQuote);
+      byId('save-quote').addEventListener('click', saveCurrentQuote);
+      byId('new-quote').addEventListener('click', newQuote);
+      byId('saved-quotes-list').addEventListener('click', event => {
+        const openButton = event.target.closest('.reopen-saved-quote');
+        if (openButton) { restoreSavedQuote(openButton.dataset.quoteNumber); return; }
+        const deleteButton = event.target.closest('.delete-saved-quote');
+        if (deleteButton) deleteSavedQuote(deleteButton.dataset.quoteNumber);
+      });
 
       byId('continue-shopping').addEventListener(
         'click',
@@ -3235,6 +3365,7 @@
       }
 
       renderStartupResult();
+      renderSavedQuotes();
       renderDeveloperDiagnostics();
 
       console.log(

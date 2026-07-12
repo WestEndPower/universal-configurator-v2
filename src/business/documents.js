@@ -66,12 +66,38 @@
   }
 
   platform.registry.registerEngine('documents', {
-    name:'Universal Quote & Document Engine', version:'1.0.0', configured:true,
+    name:'Universal Quote & Document Engine', version:'1.1.0', configured:true,
     buildQuote,
     saveQuoteSession(quote, key='universal-cpq-current-quote') {
       const payload = JSON.stringify(quote);
       global.localStorage.setItem(key, payload);
       return quote;
+    },
+    saveQuote(quote, key='universal-cpq-saved-quotes') {
+      const saved = this.listQuotes(key);
+      const record = { ...quote, updatedAt: new Date().toISOString() };
+      const index = saved.findIndex(item => item.quoteNumber === record.quoteNumber);
+      if (index >= 0) saved[index] = record;
+      else saved.unshift(record);
+      global.localStorage.setItem(key, JSON.stringify(saved.slice(0, 250)));
+      return record;
+    },
+    listQuotes(key='universal-cpq-saved-quotes') {
+      try {
+        const parsed = JSON.parse(global.localStorage.getItem(key) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        console.error('Unable to read saved quotes.', error);
+        return [];
+      }
+    },
+    getQuote(quoteNumber, key='universal-cpq-saved-quotes') {
+      return this.listQuotes(key).find(item => item.quoteNumber === quoteNumber) || null;
+    },
+    deleteQuote(quoteNumber, key='universal-cpq-saved-quotes') {
+      const saved = this.listQuotes(key).filter(item => item.quoteNumber !== quoteNumber);
+      global.localStorage.setItem(key, JSON.stringify(saved));
+      return saved;
     }
   });
 })(window);
