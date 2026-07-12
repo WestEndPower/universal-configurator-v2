@@ -887,7 +887,7 @@
       <div class="error-panel" id="error-panel"></div>
 
       <div class="app-ready-panel" id="app-ready-panel">
-        Version 2.0.17.0 configuration, pricing, and rules engine loaded successfully.
+        Version 2.0.17.1 configuration, pricing, rules, and performance diagnostics loaded successfully.
       </div>
     </section>
 
@@ -922,6 +922,7 @@
         <button class="inspector-tab" data-pane="rules" type="button">Rule Trace</button>
         <button class="inspector-tab" data-pane="relationships" type="button">Relationships</button>
         <button class="inspector-tab" data-pane="data" type="button">Data Loaded</button>
+        <button class="inspector-tab" data-pane="performance" type="button">Performance</button>
         <button class="inspector-tab" data-pane="debug" type="button">Debug Log</button>
       </div>
 
@@ -948,6 +949,11 @@
       <div class="inspector-pane" data-pane-content="data">
         <h3 style="margin:0 0 8px;">Loaded Data</h3>
         <pre class="diagnostic-json" id="diagnostic-data">Data has not loaded.</pre>
+      </div>
+
+      <div class="inspector-pane" data-pane-content="performance">
+        <h3 style="margin:0 0 8px;">Rule Timing & Performance</h3>
+        <pre class="diagnostic-json" id="diagnostic-performance">No performance data.</pre>
       </div>
 
       <div class="inspector-pane" data-pane-content="debug">
@@ -1255,7 +1261,8 @@
       developer: {
         panelOpen: false,
         roundTestPrices: false,
-        activeInspectorPane: 'configuration'
+        activeInspectorPane: 'configuration',
+        performanceHistory: []
       }
     };
 
@@ -1816,52 +1823,70 @@
     }
 
     function runUniversalRules(items) {
+      const engineStarted = performance.now();
       const result = {
-        engineVersion: '1.0',
+        engineVersion: '1.1',
         passed: true,
         errors: [],
         warnings: [],
         adjustments: [],
-        stages: []
+        stages: [],
+        performance: { stages: [], totalMs: 0 }
       };
 
-      const validationStage = {
-        stage: 'Validation',
-        status: 'PASS',
-        messages: []
-      };
-
-      items.forEach(item => {
-        const relationships = activeRelationshipsForProduct(item.productId);
-        relationships.forEach(rule => {
-          const relationshipType = normalized(rule.RelationshipType);
-          if (relationshipType !== 'requires' && relationshipType !== 'included') return;
-
-          const componentId = clean(rule.ChildComponentID);
-          const component = item.components.find(line =>
-            normalized(line.componentId) === normalized(componentId)
-          );
-          const minimumPerProduct = positiveInteger(rule.MinQty, 1);
-          const requiredTotal = minimumPerProduct * item.quantity;
-          const actualTotal = component ? component.quantity : 0;
-
-          if (actualTotal < requiredTotal) {
-            const message = `${item.name}: ${componentId} requires quantity ${requiredTotal}; configured ${actualTotal}.`;
-            result.errors.push({ code: 'REQUIRED_COMPONENT_QUANTITY', productId: item.productId, componentId, message });
-            validationStage.messages.push(`FAIL • ${message}`);
-          } else {
-            validationStage.messages.push(`PASS • ${item.name}: ${componentId} quantity ${actualTotal}/${requiredTotal}.`);
-          }
+      const timeStage = (stage, callback) => {
+        const started = performance.now();
+        const stageResult = callback();
+        const durationMs = performance.now() - started;
+        stageResult.durationMs = durationMs;
+        result.stages.push(stageResult);
+        result.performance.stages.push({
+          stage,
+          durationMs
         });
-      });
+        return stageResult;
+      };
 
-      if (result.errors.length) {
-        validationStage.status = 'FAIL';
-        result.passed = false;
-      } else if (!validationStage.messages.length) {
-        validationStage.messages.push('PASS • No required-component violations.');
-      }
-      result.stages.push(validationStage);
+      timeStage('Validation', () => {
+        const validationStage = {
+          stage: 'Validation',
+          status: 'PASS',
+          messages: []
+        };
+
+        items.forEach(item => {
+          const relationships = activeRelationshipsForProduct(item.productId);
+          relationships.forEach(rule => {
+            const relationshipType = normalized(rule.RelationshipType);
+            if (relationshipType !== 'requires' && relationshipType !== 'included') return;
+
+            const componentId = clean(rule.ChildComponentID);
+            const component = item.components.find(line =>
+              normalized(line.componentId) === normalized(componentId)
+            );
+            const minimumPerProduct = positiveInteger(rule.MinQty, 1);
+            const requiredTotal = minimumPerProduct * item.quantity;
+            const actualTotal = component ? component.quantity : 0;
+
+            if (actualTotal < requiredTotal) {
+              const message = `${item.name}: ${componentId} requires quantity ${requiredTotal}; configured ${actualTotal}.`;
+              result.errors.push({ code: 'REQUIRED_COMPONENT_QUANTITY', productId: item.productId, componentId, message });
+              validationStage.messages.push(`FAIL • ${message}`);
+            } else {
+              validationStage.messages.push(`PASS • ${item.name}: ${componentId} quantity ${actualTotal}/${requiredTotal}.`);
+            }
+          });
+        });
+
+        if (result.errors.length) {
+          validationStage.status = 'FAIL';
+          result.passed = false;
+        } else if (!validationStage.messages.length) {
+          validationStage.messages.push('PASS • No required-component violations.');
+        }
+
+        return validationStage;
+      });
 
       [
         ['Compatibility', 'Relationship-driven compatibility already applied.'],
@@ -1871,13 +1896,23 @@
         ['Dealer Rules', 'No dealer rules configured.'],
         ['Finance', 'No finance rules configured.']
       ].forEach(([stage, message]) => {
-        result.stages.push({ stage, status: 'PASS', messages: [message] });
+        timeStage(stage, () => ({ stage, status: 'PASS', messages: [message] }));
       });
+
+      result.performance.totalMs = performance.now() - engineStarted;
+      result.statistics = {
+        rulesExecuted: result.stages.length,
+        rulesPassed: result.stages.filter(stage => stage.status === 'PASS').length,
+        warnings: result.warnings.length,
+        errors: result.errors.length
+      };
 
       return result;
     }
 
     function calculateConfiguration() {
+      const calculationStarted = performance.now();
+      const buildStarted = performance.now();
       const items = Object.values(appState.cart).map(item => {
         const product = productById(item.productId);
 
@@ -1925,6 +1960,9 @@
         };
       }).filter(Boolean);
 
+      const configurationBuildMs = performance.now() - buildStarted;
+      const pricingStarted = performance.now();
+
       const productSubtotal = items.reduce(
         (total, item) => total + item.productTotal,
         0
@@ -1960,8 +1998,11 @@
         });
       });
 
+      const pricingMs = performance.now() - pricingStarted;
+      const rules = runUniversalRules(items);
+
       appState.configuration = {
-        schemaVersion: '1.2',
+        schemaVersion: '1.3',
         applicationId:
           clean(appState.application?.applicationName),
         applicationVersion:
@@ -1974,7 +2015,7 @@
         pricing: {
           trace
         },
-        rules: runUniversalRules(items),
+        rules,
         totals: {
           productSubtotal,
           componentSubtotal,
@@ -1983,8 +2024,22 @@
           promotions: 0,
           tax: 0,
           total: subtotal
+        },
+        performance: {
+          configurationBuildMs,
+          pricingMs,
+          rulesMs: rules.performance.totalMs,
+          totalMs: performance.now() - calculationStarted
         }
       };
+
+      appState.developer.performanceHistory.push({
+        timestamp: new Date().toISOString(),
+        totalMs: appState.configuration.performance.totalMs,
+        rulesMs: appState.configuration.performance.rulesMs
+      });
+      appState.developer.performanceHistory =
+        appState.developer.performanceHistory.slice(-10);
 
       if (byId('developer-panel')) {
         renderDeveloperDiagnostics();
@@ -3316,12 +3371,53 @@
         ruleLines.push(`Overall: ${rules.passed ? 'PASS' : 'FAIL'}`);
         ruleLines.push('');
         rules.stages.forEach(stage => {
-          ruleLines.push(`${stage.stage}: ${stage.status}`);
+          ruleLines.push(`${stage.stage}: ${stage.status} • ${Number(stage.durationMs || 0).toFixed(3)} ms`);
           (stage.messages || []).forEach(message => ruleLines.push(`  ${message}`));
           ruleLines.push('');
         });
       }
       byId('diagnostic-rules').textContent = ruleLines.join('\n');
+
+      const performanceLines = [];
+      const performanceData = appState.configuration?.performance;
+      const rulePerformance = appState.configuration?.rules?.performance;
+      const ruleStatistics = appState.configuration?.rules?.statistics;
+
+      if (!performanceData) {
+        performanceLines.push('No performance data.');
+      } else {
+        const speedLabel = ms => ms < 5 ? 'FAST' : ms < 15 ? 'MEDIUM' : 'SLOW';
+        performanceLines.push(`Configuration Build: ${performanceData.configurationBuildMs.toFixed(3)} ms • ${speedLabel(performanceData.configurationBuildMs)}`);
+        performanceLines.push(`Pricing Engine: ${performanceData.pricingMs.toFixed(3)} ms • ${speedLabel(performanceData.pricingMs)}`);
+        performanceLines.push('');
+        (rulePerformance?.stages || []).forEach(stage => {
+          performanceLines.push(`${stage.stage}: ${stage.durationMs.toFixed(3)} ms • ${speedLabel(stage.durationMs)}`);
+        });
+        performanceLines.push('');
+        performanceLines.push(`Rules Engine Total: ${performanceData.rulesMs.toFixed(3)} ms`);
+        performanceLines.push(`Total CPQ Time: ${performanceData.totalMs.toFixed(3)} ms`);
+        performanceLines.push('');
+        performanceLines.push(`Rules Executed: ${ruleStatistics?.rulesExecuted || 0}`);
+        performanceLines.push(`Rules Passed: ${ruleStatistics?.rulesPassed || 0}`);
+        performanceLines.push(`Warnings: ${ruleStatistics?.warnings || 0}`);
+        performanceLines.push(`Errors: ${ruleStatistics?.errors || 0}`);
+        performanceLines.push('');
+        performanceLines.push(`Products: ${appState.data.products.length}`);
+        performanceLines.push(`Components: ${allComponents().length}`);
+        performanceLines.push(`Relationships: ${appState.data.relationships.length}`);
+        performanceLines.push(`Configured Items: ${appState.configuration.items.length}`);
+        performanceLines.push('');
+        const history = appState.developer.performanceHistory || [];
+        if (history.length) {
+          const average = history.reduce((sum, run) => sum + run.totalMs, 0) / history.length;
+          performanceLines.push(`Last ${history.length} Runs:`);
+          history.forEach((run, index) => {
+            performanceLines.push(`Run ${index + 1}: ${run.totalMs.toFixed(3)} ms`);
+          });
+          performanceLines.push(`Average: ${average.toFixed(3)} ms`);
+        }
+      }
+      byId('diagnostic-performance').textContent = performanceLines.join('\n');
 
       byId('diagnostic-relationships').textContent = JSON.stringify(
         appState.data.relationships,
