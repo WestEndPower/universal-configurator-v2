@@ -717,6 +717,16 @@
           <div class="status-label">Compatibility</div>
           <div class="status-value loading" id="status-compatibility">Waiting...</div>
         </div>
+
+        <div class="status-row">
+          <div class="status-label">Batteries</div>
+          <div class="status-value loading" id="status-batteries">Waiting...</div>
+        </div>
+
+        <div class="status-row">
+          <div class="status-label">Chargers</div>
+          <div class="status-value loading" id="status-chargers">Waiting...</div>
+        </div>
       </div>
 
       <div class="error-panel" id="error-panel"></div>
@@ -990,7 +1000,9 @@
       data: {
         products: [],
         components: [],
-        compatibility: []
+        compatibility: [],
+        batteries: [],
+        chargers: []
       },
       filters: {
         keyword: '',
@@ -1807,12 +1819,125 @@
       };
     }
 
+    function normalizedExternalComponent(
+      row,
+      componentType
+    ) {
+      return {
+        ComponentID:
+          clean(row.ComponentID) ||
+          clean(row.BatteryID) ||
+          clean(row.ChargerID),
+
+        BrandID:
+          clean(row.BrandID),
+
+        ComponentType:
+          componentType,
+
+        SKU:
+          clean(row.SKU),
+
+        ComponentName:
+          clean(row.ComponentName) ||
+          clean(row.BatteryName) ||
+          clean(row.ChargerName),
+
+        Description:
+          clean(row.Description),
+
+        Price:
+          clean(row.Price),
+
+        DealerCost:
+          clean(row.DealerCost),
+
+        AppliesToProductID:
+          clean(row.AppliesToProductID),
+
+        AppliesToSKU:
+          clean(row.AppliesToSKU),
+
+        AppliesToCategory:
+          clean(row.AppliesToCategory),
+
+        Taxable:
+          clean(row.Taxable),
+
+        FinancingEligible:
+          clean(row.FinancingEligible),
+
+        SpecialFinancingEligible:
+          clean(row.SpecialFinancingEligible),
+
+        RebateEligible:
+          clean(row.RebateEligible),
+
+        DiscountEligible:
+          clean(row.DiscountEligible),
+
+        FleetEligible:
+          clean(row.FleetEligible),
+
+        BidEligible:
+          clean(row.BidEligible),
+
+        FreightEligible:
+          clean(row.FreightEligible),
+
+        FreightGroup:
+          clean(row.FreightGroup),
+
+        Required:
+          clean(row.Required),
+
+        Active:
+          clean(row.Active),
+
+        SortOrder:
+          clean(row.SortOrder),
+
+        System:
+          clean(row.System),
+
+        Ah:
+          clean(row.Ah),
+
+        Wh:
+          clean(row.Wh),
+
+        Output:
+          clean(row.Output),
+
+        _sourceType:
+          componentType
+      };
+    }
+
+    function allComponents() {
+      return [
+        ...appState.data.components,
+        ...appState.data.batteries.map(
+          row => normalizedExternalComponent(
+            row,
+            'Battery'
+          )
+        ),
+        ...appState.data.chargers.map(
+          row => normalizedExternalComponent(
+            row,
+            'Charger'
+          )
+        )
+      ];
+    }
+
     function componentsForProduct(product) {
       if (!product) {
         return [];
       }
 
-      return appState.data.components
+      return allComponents()
         .filter(component => isTrue(component.Active))
         .map(component => ({
           ...component,
@@ -1831,7 +1956,7 @@
         appState.selection.componentIds.map(clean)
       );
 
-      return appState.data.components.filter(
+      return allComponents().filter(
         component => ids.has(clean(component.ComponentID))
       );
     }
@@ -1989,6 +2114,10 @@
                       ${[
                         component.ComponentType,
                         component.SKU,
+                        component.System,
+                        component.Ah ? `${component.Ah} Ah` : '',
+                        component.Wh ? `${component.Wh} Wh` : '',
+                        component.Output,
                         component.Description
                       ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
                     </span>
@@ -2376,6 +2505,72 @@
       }
     }
 
+    async function loadBatteries() {
+      const path =
+        clean(appState.brand?.batteryDataPath) ||
+        'data/batteries.csv';
+
+      try {
+        const rows =
+          await loadDataFile(
+            'batteries',
+            path
+          );
+
+        setStatus(
+          'batteries',
+          `Loaded ${rows.length} row(s): ${path}`,
+          'success'
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : String(error);
+
+        appState.startupErrors.push(message);
+
+        setStatus(
+          'batteries',
+          message,
+          'error'
+        );
+      }
+    }
+
+    async function loadChargers() {
+      const path =
+        clean(appState.brand?.chargerDataPath) ||
+        'data/chargers.csv';
+
+      try {
+        const rows =
+          await loadDataFile(
+            'chargers',
+            path
+          );
+
+        setStatus(
+          'chargers',
+          `Loaded ${rows.length} row(s): ${path}`,
+          'success'
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : String(error);
+
+        appState.startupErrors.push(message);
+
+        setStatus(
+          'chargers',
+          message,
+          'error'
+        );
+      }
+    }
+
     async function loadComponents() {
       const componentPath =
         clean(appState.brand?.componentDataPath) ||
@@ -2550,6 +2745,8 @@
       if (appState.brand) {
         await loadCompatibility();
         await loadComponents();
+        await loadBatteries();
+        await loadChargers();
         await loadProducts();
       }
 

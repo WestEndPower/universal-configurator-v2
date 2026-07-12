@@ -1,0 +1,3 @@
+﻿BatteryID,BrandID,SKU,BatteryName,Description,System,Ah,Wh,Price,DealerCost,AppliesToProductID,AppliesToSKU,AppliesToCategory,Taxable,FinancingEligible,SpecialFinancingEligible,RebateEligible,DiscountEligible,FleetEligible,BidEligible,FreightEligible,FreightGroup,Required,Active,SortOrder
+BAT-001,test-brand,BAT-A100,A-System 100 Battery,Battery for A-System products.,A-System,4.0,144,199.99,130.00,,,,T,T,T,T,T,T,T,F,,F,T,20
+BAT-002,test-brand,BAT-B200,B-System 200 Battery,Battery for B-System products.,B-System,6.0,216,299.99,195.00,,,,T,T,T,T,T,T,T,F,,F,T,21

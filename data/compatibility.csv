@@ -4,3 +4,7 @@ COMPAT-002,TEST-002,,,,,CMP-002,,,T,F,Approved aftermarket option,T,2
 COMPAT-003,,,Handheld,,,CMP-007,,,T,F,Category match,T,3
 COMPAT-004,,,,A-System,,,,Battery,T,F,System match,T,4
 COMPAT-005,TEST-002,,,,,CMP-007,,,F,F,Excluded for this product,T,5
+COMPAT-006,,,,A-System,,BAT-001,,Battery,T,F,A-System battery match,T,6
+COMPAT-007,,,,A-System,,CHG-001,,Charger,T,F,A-System charger match,T,7
+COMPAT-008,,,,B-System,,BAT-002,,Battery,T,F,B-System battery match,T,8
+COMPAT-009,,,,B-System,,CHG-002,,Charger,T,F,B-System charger match,T,9

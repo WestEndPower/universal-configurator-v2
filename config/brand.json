@@ -9,5 +9,7 @@
   "productDataPath": "data/products.csv",
   "active": true,
   "componentDataPath": "data/components.csv",
-  "compatibilityDataPath": "data/compatibility.csv"
+  "compatibilityDataPath": "data/compatibility.csv",
+  "batteryDataPath": "data/batteries.csv",
+  "chargerDataPath": "data/chargers.csv"
 }
