@@ -1,19 +1,21 @@
-Universal Configurator V2.15.2 Update
+Universal Configurator V2.16.0 Update
 
-Install over V2.15.1. Replace only the included files.
+Install over V2.15.2. Replace only the included files.
 Dealer settings, dealer branding, and saved quote data are not included and are never overwritten.
 
-Added Developer Diagnostics:
-- Live normalized CPQ configuration object
-- Loaded row counts
-- Selected product and component quantities
-- Shared totals
-- Startup errors
+Added Universal Pricing Engine foundation:
+- One normalized priceLine() calculation path
+- One calculateConfiguration() source for saved configuration totals
+- Product and component subtotals
+- Reserved freight, promotions, and tax totals
+- Configuration schema version 1.1
 
-Added optional session-only Round Test Mode:
-- Product: $1,000
-- Battery: $100
-- Charger: $10
-- Other component: $1
+Added Calculation Trace to Developer Diagnostics:
+- Each product and component line
+- Quantity x unit price = line amount
+- Product subtotal
+- Component subtotal
+- Freight, promotions, and tax placeholders
+- Final total
 
-Round Test Mode changes prices in browser memory only. It does not edit CSV files.
+Round Test Mode remains session-only and does not edit CSV files.

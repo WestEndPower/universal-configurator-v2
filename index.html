@@ -860,7 +860,7 @@
       <div class="error-panel" id="error-panel"></div>
 
       <div class="app-ready-panel" id="app-ready-panel">
-        Version 2.0.15.2 configuration and product data loaded successfully.
+        Version 2.0.16.0 configuration and product data loaded successfully.
       </div>
     </section>
 
@@ -889,6 +889,10 @@
         <div class="summary-box"><div class="summary-label">Configured Items</div><div class="summary-value" id="diag-items">0</div></div>
       </div>
 
+      <h3 style="margin:18px 0 8px;">Calculation Trace</h3>
+      <pre class="diagnostic-json" id="diagnostic-trace">No configured items.</pre>
+
+      <h3 style="margin:18px 0 8px;">CPQ Object</h3>
       <pre class="diagnostic-json" id="diagnostic-json">Diagnostics will appear after startup.</pre>
     </section>
 
@@ -1728,6 +1732,21 @@
       }).filter(Boolean);
     }
 
+    function priceLine({ type, id, name, sku, quantity, unitPrice }) {
+      const normalizedQuantity = positiveInteger(quantity, 1);
+      const normalizedUnitPrice = money(unitPrice);
+
+      return {
+        type,
+        id: clean(id),
+        name: clean(name),
+        sku: clean(sku),
+        quantity: normalizedQuantity,
+        unitPrice: normalizedUnitPrice,
+        lineTotal: normalizedUnitPrice * normalizedQuantity
+      };
+    }
+
     function calculateConfiguration() {
       const items = Object.values(appState.cart).map(item => {
         const product = productById(item.productId);
@@ -1737,10 +1756,25 @@
         }
 
         const quantity = positiveInteger(item.quantity, 1);
-        const unitPrice = money(item.unitPrice) ||
-          productUnitPrice(product);
-        const productTotal = unitPrice * quantity;
-        const components = selectedComponentsForCartItem(item);
+        const productLine = priceLine({
+          type: 'Product',
+          id: product.ProductID,
+          name: product.ProductName,
+          sku: product.SKU,
+          quantity,
+          unitPrice: money(item.unitPrice) || productUnitPrice(product)
+        });
+        const components = selectedComponentsForCartItem(item).map(component => ({
+          ...component,
+          lineTotal: priceLine({
+            type: component.type,
+            id: component.componentId,
+            name: component.name,
+            sku: component.sku,
+            quantity: component.quantity,
+            unitPrice: component.unitPrice
+          }).lineTotal
+        }));
         const componentTotal = components.reduce(
           (total, component) => total + component.lineTotal,
           0
@@ -1753,11 +1787,11 @@
           name: clean(product.ProductName),
           category: clean(product.Category),
           quantity,
-          unitPrice,
-          productTotal,
+          unitPrice: productLine.unitPrice,
+          productTotal: productLine.lineTotal,
           components,
           componentTotal,
-          lineTotal: productTotal + componentTotal
+          lineTotal: productLine.lineTotal + componentTotal
         };
       }).filter(Boolean);
 
@@ -1772,9 +1806,32 @@
       );
 
       const subtotal = productSubtotal + componentSubtotal;
+      const trace = [];
+
+      items.forEach(item => {
+        trace.push({
+          type: 'Product',
+          name: item.name,
+          sku: item.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          amount: item.productTotal
+        });
+
+        item.components.forEach(component => {
+          trace.push({
+            type: component.type || 'Component',
+            name: component.name,
+            sku: component.sku,
+            quantity: component.quantity,
+            unitPrice: component.unitPrice,
+            amount: component.lineTotal
+          });
+        });
+      });
 
       appState.configuration = {
-        schemaVersion: '1.0',
+        schemaVersion: '1.1',
         applicationId:
           clean(appState.application?.applicationName),
         applicationVersion:
@@ -1784,10 +1841,16 @@
         currency:
           clean(appState.application?.currency) || 'USD',
         items,
+        pricing: {
+          trace
+        },
         totals: {
           productSubtotal,
           componentSubtotal,
           subtotal,
+          freight: 0,
+          promotions: 0,
+          tax: 0,
           total: subtotal
         }
       };
@@ -3068,6 +3131,32 @@
         },
         startupErrors: [...appState.startupErrors]
       };
+
+      const traceLines = [];
+      const pricingTrace = appState.configuration?.pricing?.trace || [];
+
+      if (!pricingTrace.length) {
+        traceLines.push('No configured items.');
+      } else {
+        pricingTrace.forEach(line => {
+          traceLines.push(
+            `${line.type}: ${line.name}${line.sku ? ` • ${line.sku}` : ''}`
+          );
+          traceLines.push(
+            `${line.quantity} × ${formatMoney(line.unitPrice)} = ${formatMoney(line.amount)}`
+          );
+          traceLines.push('');
+        });
+
+        traceLines.push(`Product Subtotal: ${formatMoney(appState.configuration.totals.productSubtotal)}`);
+        traceLines.push(`Component Subtotal: ${formatMoney(appState.configuration.totals.componentSubtotal)}`);
+        traceLines.push(`Freight: ${formatMoney(appState.configuration.totals.freight)}`);
+        traceLines.push(`Promotions: ${formatMoney(appState.configuration.totals.promotions)}`);
+        traceLines.push(`Tax: ${formatMoney(appState.configuration.totals.tax)}`);
+        traceLines.push(`Final Total: ${formatMoney(appState.configuration.totals.total)}`);
+      }
+
+      byId('diagnostic-trace').textContent = traceLines.join('\n');
 
       byId('diagnostic-json').textContent = JSON.stringify(
         diagnostics,

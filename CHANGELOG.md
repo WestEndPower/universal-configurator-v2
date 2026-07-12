@@ -81,3 +81,12 @@
 - Added session-only round-number test pricing.
 - Round test values: product $1,000, battery $100, charger $10, other component $1.
 - Test mode does not change dealer files or CSV data.
+
+## V2.16.0
+- Added normalized Universal Pricing Engine foundation.
+- Added shared `priceLine()` calculation helper.
+- Added auditable pricing trace to the CPQ configuration object.
+- Added readable Calculation Trace to Developer Diagnostics.
+- Added reserved freight, promotion, and tax totals without changing current prices.
+- Updated CPQ configuration schema to 1.1.
+- Preserved relationship filtering, component grouping, and dealer settings.
