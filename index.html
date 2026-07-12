@@ -1083,6 +1083,18 @@
         componentQuantities: {}
       },
       cart: {},
+      configuration: {
+        schemaVersion: '1.0',
+        applicationId: '',
+        currency: 'USD',
+        items: [],
+        totals: {
+          productSubtotal: 0,
+          componentSubtotal: 0,
+          subtotal: 0,
+          total: 0
+        }
+      },
       startupErrors: []
     };
 
@@ -1536,12 +1548,118 @@
       });
     }
 
-    function configurationSubtotal() {
-      return Object.values(appState.cart).reduce(
-        (total, item) =>
-          total + money(item.total),
+    function selectedComponentsForCartItem(item) {
+      if (!Array.isArray(item?.componentIds)) {
+        return [];
+      }
+
+      return item.componentIds.map(componentId => {
+        const component = componentById(componentId);
+
+        if (!component) {
+          return null;
+        }
+
+        const quantityPerProduct = positiveInteger(
+          item.componentQuantities?.[clean(componentId)],
+          1
+        );
+
+        const productQuantity = positiveInteger(
+          item.quantity,
+          1
+        );
+
+        const unitPrice = money(component.Price);
+        const totalQuantity =
+          quantityPerProduct * productQuantity;
+
+        return {
+          componentId: clean(component.ComponentID),
+          sku: clean(component.SKU),
+          name:
+            clean(component.ComponentName) ||
+            clean(component.SKU) ||
+            clean(component.ComponentID),
+          type: clean(component.ComponentType) || 'Component',
+          system: clean(component.System),
+          quantityPerProduct,
+          quantity: totalQuantity,
+          unitPrice,
+          lineTotal: unitPrice * totalQuantity
+        };
+      }).filter(Boolean);
+    }
+
+    function calculateConfiguration() {
+      const items = Object.values(appState.cart).map(item => {
+        const product = productById(item.productId);
+
+        if (!product) {
+          return null;
+        }
+
+        const quantity = positiveInteger(item.quantity, 1);
+        const unitPrice = money(item.unitPrice) ||
+          productUnitPrice(product);
+        const productTotal = unitPrice * quantity;
+        const components = selectedComponentsForCartItem(item);
+        const componentTotal = components.reduce(
+          (total, component) => total + component.lineTotal,
+          0
+        );
+
+        return {
+          productId: clean(product.ProductID),
+          sku: clean(product.SKU),
+          model: clean(product.Model),
+          name: clean(product.ProductName),
+          category: clean(product.Category),
+          quantity,
+          unitPrice,
+          productTotal,
+          components,
+          componentTotal,
+          lineTotal: productTotal + componentTotal
+        };
+      }).filter(Boolean);
+
+      const productSubtotal = items.reduce(
+        (total, item) => total + item.productTotal,
         0
       );
+
+      const componentSubtotal = items.reduce(
+        (total, item) => total + item.componentTotal,
+        0
+      );
+
+      const subtotal = productSubtotal + componentSubtotal;
+
+      appState.configuration = {
+        schemaVersion: '1.0',
+        applicationId:
+          clean(appState.application?.applicationName),
+        applicationVersion:
+          clean(appState.application?.applicationVersion),
+        brandId: clean(appState.brand?.brandId),
+        dealerId: clean(appState.dealer?.dealerId),
+        currency:
+          clean(appState.application?.currency) || 'USD',
+        items,
+        totals: {
+          productSubtotal,
+          componentSubtotal,
+          subtotal,
+          total: subtotal
+        }
+      };
+
+      return appState.configuration;
+    }
+
+    function configurationSubtotal() {
+      return calculateConfiguration().totals.subtotal;
     }
 
     function productById(productId) {
@@ -1559,38 +1677,22 @@
     }
 
     function groupedComponentsForCartItem(item) {
-      if (!Array.isArray(item?.componentIds)) {
+      const sourceComponents = Array.isArray(item?.components)
+        ? item.components
+        : selectedComponentsForCartItem(item);
+
+      if (!sourceComponents.length) {
         return [];
       }
 
-      const productQuantity =
-        positiveInteger(item.quantity, 1);
-
       const groups = new Map();
 
-      item.componentIds.forEach(componentId => {
-        const component = componentById(componentId);
-
-        if (!component) {
-          return;
-        }
-
-        const type =
-          clean(component.ComponentType) || 'Component';
-
-        const selectedQuantity =
-          positiveInteger(
-            item.componentQuantities?.[clean(componentId)],
-            1
-          );
-
-        const totalQuantity =
-          selectedQuantity * productQuantity;
-
+      sourceComponents.forEach(component => {
+        const type = clean(component.type) || 'Component';
         const itemKey = [
-          clean(component.ComponentID),
-          clean(component.SKU),
-          clean(component.ComponentName)
+          clean(component.componentId),
+          clean(component.sku),
+          clean(component.name)
         ].join('|');
 
         if (!groups.has(type)) {
@@ -1601,18 +1703,15 @@
         const existing = typeItems.get(itemKey);
 
         if (existing) {
-          existing.quantity += totalQuantity;
+          existing.quantity += positiveInteger(component.quantity, 1);
           return;
         }
 
         typeItems.set(itemKey, {
-          name:
-            clean(component.ComponentName) ||
-            clean(component.SKU) ||
-            clean(component.ComponentID),
-          sku: clean(component.SKU),
-          quantity: totalQuantity,
-          sortOrder: money(component.SortOrder)
+          name: clean(component.name),
+          sku: clean(component.sku),
+          quantity: positiveInteger(component.quantity, 1),
+          sortOrder: money(component.sortOrder)
         });
       });
 
@@ -1660,7 +1759,8 @@
     }
 
     function renderCurrentConfiguration() {
-      const entries = Object.values(appState.cart);
+      const configuration = calculateConfiguration();
+      const entries = configuration.items;
       const card = byId('current-configuration-card');
 
       if (!entries.length) {
@@ -1676,19 +1776,13 @@
         String(configuredUnitsCount());
 
       byId('configuration-subtotal').textContent =
-        formatMoney(configurationSubtotal());
+        formatMoney(configuration.totals.subtotal);
 
       byId('configuration-total').textContent =
-        formatMoney(configurationSubtotal());
+        formatMoney(configuration.totals.total);
 
       byId('configuration-lines').innerHTML =
         entries.map(item => {
-          const product = productById(item.productId);
-
-          if (!product) {
-            return '';
-          }
-
           return `
             <article class="configuration-line">
               <div class="configuration-line-qty">
@@ -1697,14 +1791,14 @@
 
               <div>
                 <div class="configuration-line-name">
-                  ${escapeHtml(product.ProductName)}
+                  ${escapeHtml(item.name)}
                 </div>
 
                 <div class="configuration-line-meta">
                   ${[
-                    product.Model,
-                    product.SKU,
-                    product.Category
+                    item.model,
+                    item.sku,
+                    item.category
                   ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
                 </div>
 
@@ -1712,7 +1806,7 @@
               </div>
 
               <div class="configuration-line-total">
-                ${formatMoney(item.total)}
+                ${formatMoney(item.lineTotal)}
               </div>
 
               <div class="configuration-line-actions">
@@ -2694,6 +2788,7 @@
         total: configurationUnitTotal(product) * quantity
       };
 
+      calculateConfiguration();
       showProductSearch();
     }
 
@@ -2705,6 +2800,7 @@
       }
 
       delete appState.cart[clean(product.ProductID)];
+      calculateConfiguration();
 
       appState.selection.quantity = 1;
 
@@ -3314,7 +3410,7 @@
       renderStartupResult();
 
       console.log(
-        'Universal Configurator Version 2 state:',
+        'Universal Configurator Version 2 CPQ state:',
         appState
       );
     }

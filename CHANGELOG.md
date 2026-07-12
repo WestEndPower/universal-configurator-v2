@@ -57,3 +57,18 @@
 - Added the same grouped component detail to configured product rows so saved selections are visible immediately.
 - Reused the universal component collection across batteries, chargers, and other component sources.
 - Preserved compact invoice styling and the existing V2 architecture.
+
+## V2.15.0
+
+- Added the Universal Configuration Object (`appState.configuration`).
+- Added `calculateConfiguration()` as the shared pricing and totals path.
+- Normalized each configured product into product, component, and line totals.
+- Added product subtotal and component subtotal to the CPQ data object.
+- Updated Current Configuration to render from the normalized CPQ object.
+- Preserved CSV-driven relationships, compatibility filtering, and quantity multiplication.
+- No dealer-specific or brand-specific pricing logic added.
+
+
+## V2.15.1
+- Fixed `item is not defined` during product-list rendering.
+- Restored product-name rendering with `product.ProductName`.
