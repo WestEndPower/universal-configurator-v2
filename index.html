@@ -36,6 +36,12 @@
       font-family: Arial, Helvetica, sans-serif;
     }
 
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
     .app-shell {
       width: min(1100px, calc(100% - 32px));
       margin: 0 auto;
@@ -198,13 +204,20 @@
       font-weight: 800;
     }
 
-    .clear-button {
+    .button {
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 9px 12px;
+      padding: 10px 13px;
       background: #fff;
+      color: var(--text-color);
       font-weight: 800;
       cursor: pointer;
+    }
+
+    .button.primary {
+      border-color: var(--brand-primary);
+      background: var(--brand-primary);
+      color: #fff;
     }
 
     .product-summary {
@@ -246,6 +259,10 @@
       background: #fff;
     }
 
+    .product-row:hover {
+      border-color: var(--brand-primary);
+    }
+
     .product-name {
       margin: 0;
       font-size: 16px;
@@ -262,6 +279,14 @@
     .product-price {
       font-weight: 900;
       white-space: nowrap;
+      text-align: right;
+    }
+
+    .product-price small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted-text);
+      font-weight: 700;
     }
 
     .empty-state {
@@ -273,14 +298,126 @@
       background: #fff;
     }
 
+    .config-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .config-title {
+      margin: 8px 0 0;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .config-meta {
+      margin-top: 7px;
+      color: var(--muted-text);
+      font-size: 14px;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr);
+      gap: 18px;
+    }
+
+    .config-section,
+    .price-panel {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .config-section h3,
+    .price-panel h3 {
+      margin: 0 0 14px;
+      font-size: 17px;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .spec-item {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .spec-label {
+      color: var(--muted-text);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .spec-value {
+      margin-top: 5px;
+      font-weight: 800;
+    }
+
+    .price-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .price-line:last-of-type {
+      border-bottom: 0;
+    }
+
+    .price-total {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 2px solid var(--brand-primary);
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .quantity-control {
+      margin-top: 16px;
+    }
+
+    .quantity-row {
+      display: grid;
+      grid-template-columns: 44px 90px 44px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .quantity-button {
+      min-height: 42px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #fff;
+      font-size: 20px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .quantity-input {
+      text-align: center;
+      font-weight: 900;
+    }
+
     @media (max-width: 900px) {
-      .filter-grid {
+      .filter-grid,
+      .config-grid {
         grid-template-columns: 1fr 1fr;
       }
     }
 
     @media (max-width: 700px) {
-      .app-header-row {
+      .app-header-row,
+      .config-header {
         align-items: flex-start;
         flex-direction: column;
       }
@@ -288,13 +425,19 @@
       .status-row,
       .product-row,
       .filter-grid,
-      .product-summary {
+      .product-summary,
+      .config-grid,
+      .spec-grid {
         grid-template-columns: 1fr;
       }
 
       .filter-footer {
         align-items: stretch;
         flex-direction: column;
+      }
+
+      .product-price {
+        text-align: left;
       }
     }
   </style>
@@ -357,7 +500,7 @@
       </div>
     </section>
 
-    <section class="card" id="product-data-card" hidden>
+    <section class="card" id="product-search-card" hidden>
       <h2>Universal Product Search</h2>
 
       <div class="filter-grid">
@@ -405,7 +548,7 @@
         </div>
 
         <button
-          class="clear-button"
+          class="button"
           id="clear-filters"
           type="button"
         >
@@ -434,6 +577,84 @@
 
       <div class="product-list" id="product-list"></div>
     </section>
+
+    <section class="card" id="product-config-card" hidden>
+      <div class="config-header">
+        <div>
+          <button class="button" id="back-to-products" type="button">
+            ← Back to Products
+          </button>
+
+          <h2 class="config-title" id="config-product-name">
+            Product
+          </h2>
+
+          <div class="config-meta" id="config-product-meta"></div>
+        </div>
+      </div>
+
+      <div class="config-grid">
+        <div class="config-section">
+          <h3>Product Details</h3>
+
+          <div id="config-description" class="product-description"></div>
+
+          <div class="spec-grid" id="config-specs"></div>
+        </div>
+
+        <aside class="price-panel">
+          <h3>Configuration Price</h3>
+
+          <div class="price-line">
+            <span>Unit MSRP</span>
+            <strong id="config-msrp">$0.00</strong>
+          </div>
+
+          <div class="price-line">
+            <span>Unit Price</span>
+            <strong id="config-unit-price">$0.00</strong>
+          </div>
+
+          <div class="quantity-control">
+            <label for="config-quantity">Quantity</label>
+
+            <div class="quantity-row">
+              <button
+                class="quantity-button"
+                id="quantity-minus"
+                type="button"
+                aria-label="Decrease quantity"
+              >
+                −
+              </button>
+
+              <input
+                class="quantity-input"
+                id="config-quantity"
+                type="number"
+                min="1"
+                step="1"
+                value="1"
+              >
+
+              <button
+                class="quantity-button"
+                id="quantity-plus"
+                type="button"
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="price-line price-total">
+            <span>Configured Total</span>
+            <strong id="config-total">$0.00</strong>
+          </div>
+        </aside>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -461,6 +682,10 @@
         system: '',
         series: ''
       },
+      selection: {
+        productId: '',
+        quantity: 1
+      },
       startupErrors: []
     };
 
@@ -474,6 +699,15 @@
 
     function normalized(value) {
       return clean(value).toLowerCase();
+    }
+
+    function escapeHtml(value) {
+      return clean(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
 
     function isTrue(value) {
@@ -490,6 +724,14 @@
       return Number.isFinite(number) ? number : 0;
     }
 
+    function positiveInteger(value, fallback = 1) {
+      const number = Math.floor(Number(value));
+
+      return Number.isFinite(number) && number > 0
+        ? number
+        : fallback;
+    }
+
     function formatMoney(value) {
       const locale =
         clean(appState.application?.locale) || 'en-US';
@@ -501,6 +743,12 @@
         style: 'currency',
         currency
       }).format(money(value));
+    }
+
+    function productUnitPrice(product) {
+      return money(product?.SalePrice) > 0
+        ? money(product.SalePrice)
+        : money(product?.MSRP);
     }
 
     function setStatus(type, message, statusClass) {
@@ -797,6 +1045,14 @@
         );
     }
 
+    function selectedProduct() {
+      return activeProducts().find(
+        product =>
+          clean(product.ProductID) ===
+          clean(appState.selection.productId)
+      ) || null;
+    }
+
     function uniqueValues(products, fieldName) {
       return [
         ...new Set(
@@ -818,11 +1074,11 @@
       const select = byId(selectId);
 
       select.innerHTML = [
-        `<option value="">${defaultLabel}</option>`,
+        `<option value="">${escapeHtml(defaultLabel)}</option>`,
         ...values.map(
           value => `
-            <option value="${value}">
-              ${value}
+            <option value="${escapeHtml(value)}">
+              ${escapeHtml(value)}
             </option>
           `
         )
@@ -881,32 +1137,12 @@
           product.ShortDescription
         ].map(normalized).join(' ');
 
-        const keywordMatches =
-          !keyword ||
-          searchableText.includes(normalized(keyword));
-
-        const categoryMatches =
-          !category ||
-          clean(product.Category) === category;
-
-        const powerMatches =
-          !powerType ||
-          clean(product.PowerType) === powerType;
-
-        const systemMatches =
-          !system ||
-          clean(product.System) === system;
-
-        const seriesMatches =
-          !series ||
-          clean(product.Series) === series;
-
         return (
-          keywordMatches &&
-          categoryMatches &&
-          powerMatches &&
-          systemMatches &&
-          seriesMatches
+          (!keyword || searchableText.includes(normalized(keyword))) &&
+          (!category || clean(product.Category) === category) &&
+          (!powerType || clean(product.PowerType) === powerType) &&
+          (!system || clean(product.System) === system) &&
+          (!series || clean(product.Series) === series)
         );
       });
     }
@@ -940,26 +1176,26 @@
               <article class="product-row">
                 <div>
                   <h3 class="product-name">
-                    ${clean(product.ProductName)}
+                    ${escapeHtml(product.ProductName)}
                   </h3>
 
                   <div class="product-meta">
                     ${[
-                      clean(product.BrandID),
-                      clean(product.Model),
-                      clean(product.SKU),
-                      clean(product.Category),
-                      clean(product.PowerType),
-                      clean(product.System),
-                      clean(product.Series)
-                    ].filter(Boolean).join(' • ')}
+                      product.BrandID,
+                      product.Model,
+                      product.SKU,
+                      product.Category,
+                      product.PowerType,
+                      product.System,
+                      product.Series
+                    ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
                   </div>
 
                   ${
                     clean(product.ShortDescription)
                       ? `
                         <div class="product-description">
-                          ${clean(product.ShortDescription)}
+                          ${escapeHtml(product.ShortDescription)}
                         </div>
                       `
                       : ''
@@ -967,7 +1203,22 @@
                 </div>
 
                 <div class="product-price">
-                  ${formatMoney(product.SalePrice || product.MSRP)}
+                  ${formatMoney(productUnitPrice(product))}
+
+                  ${
+                    money(product.SalePrice) > 0
+                      ? `<small>MSRP ${formatMoney(product.MSRP)}</small>`
+                      : ''
+                  }
+
+                  <button
+                    class="button primary select-product"
+                    type="button"
+                    data-product-id="${escapeHtml(product.ProductID)}"
+                    style="margin-top:10px;"
+                  >
+                    Configure
+                  </button>
                 </div>
               </article>
             `).join('')
@@ -977,7 +1228,112 @@
               </div>
             `;
 
-      byId('product-data-card').hidden = false;
+      byId('product-search-card').hidden = false;
+    }
+
+    function renderSelectedProduct() {
+      const product = selectedProduct();
+
+      if (!product) {
+        return;
+      }
+
+      const quantity =
+        positiveInteger(appState.selection.quantity, 1);
+
+      appState.selection.quantity = quantity;
+
+      byId('config-product-name').textContent =
+        clean(product.ProductName);
+
+      byId('config-product-meta').textContent =
+        [
+          clean(product.BrandID),
+          clean(product.Model),
+          clean(product.SKU),
+          clean(product.Category),
+          clean(product.PowerType),
+          clean(product.System),
+          clean(product.Series)
+        ].filter(Boolean).join(' • ');
+
+      byId('config-description').textContent =
+        clean(product.ShortDescription) ||
+        'No description provided.';
+
+      const specs = [
+        [product.Spec1Label, product.Spec1Value],
+        [product.Spec2Label, product.Spec2Value],
+        [product.Spec3Label, product.Spec3Value],
+        ['Component Type', product.ComponentType],
+        ['Subcategory', product.SubCategory],
+        ['Assembly Available', isTrue(product.AssemblyOption) ? 'Yes' : 'No']
+      ].filter(
+        ([label, value]) =>
+          clean(label) && clean(value)
+      );
+
+      byId('config-specs').innerHTML =
+        specs.length
+          ? specs.map(
+              ([label, value]) => `
+                <div class="spec-item">
+                  <div class="spec-label">
+                    ${escapeHtml(label)}
+                  </div>
+
+                  <div class="spec-value">
+                    ${escapeHtml(value)}
+                  </div>
+                </div>
+              `
+            ).join('')
+          : `
+              <div class="empty-state">
+                No specifications provided.
+              </div>
+            `;
+
+      byId('config-msrp').textContent =
+        formatMoney(product.MSRP);
+
+      byId('config-unit-price').textContent =
+        formatMoney(productUnitPrice(product));
+
+      byId('config-quantity').value =
+        String(quantity);
+
+      byId('config-total').textContent =
+        formatMoney(
+          productUnitPrice(product) * quantity
+        );
+    }
+
+    function showProductConfiguration(productId) {
+      appState.selection.productId =
+        clean(productId);
+
+      appState.selection.quantity = 1;
+
+      renderSelectedProduct();
+
+      byId('product-search-card').hidden = true;
+      byId('product-config-card').hidden = false;
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+
+    function showProductSearch() {
+      byId('product-config-card').hidden = true;
+      byId('product-search-card').hidden = false;
+
+      window.scrollTo({
+        top: byId('product-search-card').offsetTop - 12,
+        behavior: 'smooth'
+      });
     }
 
     function readFiltersFromControls() {
@@ -1013,7 +1369,17 @@
       renderProducts();
     }
 
-    function bindProductFilters() {
+    function changeQuantity(change) {
+      appState.selection.quantity =
+        Math.max(
+          1,
+          positiveInteger(appState.selection.quantity, 1) + change
+        );
+
+      renderSelectedProduct();
+    }
+
+    function bindApplicationEvents() {
       [
         'filter-keyword',
         'filter-category',
@@ -1032,6 +1398,47 @@
       byId('clear-filters').addEventListener(
         'click',
         clearFilters
+      );
+
+      byId('product-list').addEventListener(
+        'click',
+        event => {
+          const button =
+            event.target.closest('.select-product');
+
+          if (!button) {
+            return;
+          }
+
+          showProductConfiguration(
+            button.dataset.productId
+          );
+        }
+      );
+
+      byId('back-to-products').addEventListener(
+        'click',
+        showProductSearch
+      );
+
+      byId('quantity-minus').addEventListener(
+        'click',
+        () => changeQuantity(-1)
+      );
+
+      byId('quantity-plus').addEventListener(
+        'click',
+        () => changeQuantity(1)
+      );
+
+      byId('config-quantity').addEventListener(
+        'input',
+        event => {
+          appState.selection.quantity =
+            positiveInteger(event.target.value, 1);
+
+          renderSelectedProduct();
+        }
       );
     }
 
@@ -1063,7 +1470,6 @@
         );
 
         populateProductFilters();
-        bindProductFilters();
         renderProducts();
       } catch (error) {
         const message =
@@ -1143,6 +1549,8 @@
     }
 
     async function initializeApplication() {
+      bindApplicationEvents();
+
       await Promise.all([
         loadConfigurationFile(
           'application',
