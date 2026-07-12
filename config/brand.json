@@ -1,0 +1,11 @@
+{
+  "brandId": "",
+  "brandName": "",
+  "displayName": "",
+  "logoUrl": "",
+  "primaryColor": "#333333",
+  "secondaryColor": "#111111",
+  "accentColor": "#f4f4f4",
+  "productDataPath": "data/products.csv",
+  "active": true
+}
