@@ -887,7 +887,7 @@
       <div class="error-panel" id="error-panel"></div>
 
       <div class="app-ready-panel" id="app-ready-panel">
-        Version 2.0.17.1 configuration, pricing, rules, and performance diagnostics loaded successfully.
+        Version 2.0.17.2 configuration, pricing, rules, performance, and diagnostic export loaded successfully.
       </div>
     </section>
 
@@ -900,9 +900,15 @@
           </p>
         </div>
 
-        <button class="button" id="toggle-round-test-prices" type="button">
-          Enable Round Test Prices
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="button" id="export-diagnostics" type="button">
+            Export Diagnostics
+          </button>
+
+          <button class="button" id="toggle-round-test-prices" type="button">
+            Enable Round Test Prices
+          </button>
+        </div>
       </div>
 
       <div class="round-test-banner" id="round-test-banner">
@@ -3438,6 +3444,96 @@
       );
     }
 
+    function buildDiagnosticSnapshot() {
+      const selected = selectedProduct();
+      const rules = appState.configuration?.rules || null;
+      const performance = appState.configuration?.performance || null;
+      const pricingTrace = appState.configuration?.pricing?.trace || [];
+
+      return {
+        exportFormat: 'universal-cpq-diagnostics',
+        exportVersion: '1.0',
+        exportedAt: new Date().toISOString(),
+        application: {
+          name: clean(appState.application?.applicationName),
+          version: clean(appState.application?.applicationVersion),
+          dataVersion: clean(appState.application?.dataVersion),
+          cpqSchemaVersion: clean(
+            appState.application?.cpq?.configurationSchemaVersion ||
+            appState.configuration?.schemaVersion
+          )
+        },
+        session: {
+          roundTestPrices: appState.developer.roundTestPrices,
+          activeInspectorPane: appState.developer.activeInspectorPane,
+          pageUrl: window.location.href,
+          userAgent: navigator.userAgent
+        },
+        selectedProduct: selected ? {
+          productId: clean(selected.ProductID),
+          sku: clean(selected.SKU),
+          name: clean(selected.ProductName),
+          system: clean(selected.System),
+          quantity: positiveInteger(appState.selection.quantity, 1),
+          selectedComponentIds: [...appState.selection.componentIds],
+          componentQuantities: {
+            ...appState.selection.componentQuantities
+          }
+        } : null,
+        configuration: appState.configuration,
+        calculationTrace: pricingTrace,
+        ruleTrace: rules,
+        performance: {
+          current: performance,
+          rulePerformance: rules?.performance || null,
+          ruleStatistics: rules?.statistics || null,
+          history: [...(appState.developer.performanceHistory || [])]
+        },
+        catalogStatistics: {
+          activeProducts: activeProducts().length,
+          productsLoaded: appState.data.products.length,
+          componentsLoaded: appState.data.components.length,
+          batteriesLoaded: appState.data.batteries.length,
+          chargersLoaded: appState.data.chargers.length,
+          compatibilityRows: appState.data.compatibility.length,
+          relationshipRows: appState.data.relationships.length,
+          unifiedComponents: allComponents().length,
+          configuredItems: appState.configuration?.items?.length || 0
+        },
+        startupErrors: [...appState.startupErrors]
+      };
+    }
+
+    function exportDiagnostics() {
+      try {
+        const snapshot = buildDiagnosticSnapshot();
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/[:.]/g, '-')
+          .replace('T', '_')
+          .replace('Z', '');
+        const version = clean(appState.application?.applicationVersion) || 'unknown';
+        const filename = `universal-cpq-diagnostics-v${version}_${timestamp}.json`;
+        const blob = new Blob(
+          [JSON.stringify(snapshot, null, 2)],
+          { type: 'application/json;charset=utf-8' }
+        );
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        appState.startupErrors.push(
+          `Diagnostics export failed: ${error.message}`
+        );
+        renderDeveloperDiagnostics();
+      }
+    }
+
     function refreshAfterDiagnosticPriceChange() {
       calculateConfiguration();
       renderProducts();
@@ -3465,6 +3561,11 @@
         appState.developer.activeInspectorPane = button.dataset.pane;
         renderDeveloperDiagnostics();
       });
+
+      byId('export-diagnostics').addEventListener(
+        'click',
+        exportDiagnostics
+      );
 
       byId('toggle-round-test-prices').addEventListener(
         'click',

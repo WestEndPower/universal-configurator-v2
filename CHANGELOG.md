@@ -1,3 +1,11 @@
+# V2.17.2
+
+- Added Export Diagnostics to the CPQ Inspector.
+- Added timestamped JSON snapshots for support and regression testing.
+- Export includes CPQ configuration, calculation trace, rule trace, timing history, catalog counts, and startup errors.
+- Updated CPQ schema metadata to 1.4.
+- Dealer settings remain excluded and untouched.
+
 # V2.17.0
 
 - Added Universal Rules Engine foundation.
