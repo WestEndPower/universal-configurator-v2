@@ -1,5 +1,13 @@
 # Universal Configurator V2
 
+## V2.13
+- Added automatic package builder quantities
+- Added per-component quantity controls
+- Added relationship minimum and maximum quantity enforcement
+- Added locked quantities for fixed required/included package items
+- Added quantity-aware component totals and invoice lines
+
+
 ## V2.12
 - Added universal relationship engine
 - Added Requires, Included, Recommended, Optional relationship types

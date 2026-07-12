@@ -440,7 +440,7 @@
 
     .component-item {
       display: grid;
-      grid-template-columns: 28px minmax(0, 1fr) auto;
+      grid-template-columns: 28px minmax(0, 1fr) 82px auto;
       gap: 10px;
       align-items: center;
       padding: 12px;
@@ -536,6 +536,19 @@
     .relationship-note.included {
       background: #e8f7ec;
       color: var(--success-color);
+    }
+
+    .component-quantity {
+      width: 72px;
+      min-height: 34px;
+      padding: 5px 7px;
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .component-quantity[disabled] {
+      background: #f2f4f7;
+      color: #667085;
     }
 
 
@@ -1042,7 +1055,8 @@
       selection: {
         productId: '',
         quantity: 1,
-        componentIds: []
+        componentIds: [],
+        componentQuantities: {}
       },
       cart: {},
       startupErrors: []
@@ -2060,10 +2074,40 @@
       );
     }
 
+    function componentSelectedQuantity(componentId) {
+      const component =
+        allComponents().find(
+          row =>
+            clean(row.ComponentID) === clean(componentId)
+        );
+
+      const relationship =
+        relationshipForProductComponent(
+          selectedProduct(),
+          component
+        );
+
+      const fallback =
+        relationship
+          ? positiveInteger(relationship.MinQty, 1)
+          : 1;
+
+      return positiveInteger(
+        appState.selection.componentQuantities[
+          clean(componentId)
+        ],
+        fallback
+      );
+    }
+
     function componentsUnitTotal() {
       return selectedComponentRecords().reduce(
         (total, component) =>
-          total + money(component.Price),
+          total +
+          (
+            money(component.Price) *
+            componentSelectedQuantity(component.ComponentID)
+          ),
         0
       );
     }
@@ -2094,7 +2138,9 @@
 
       selectedComponentRecords().forEach(component => {
         const lineAmount =
-          money(component.Price) * quantity;
+          money(component.Price) *
+          componentSelectedQuantity(component.ComponentID) *
+          quantity;
 
         if (isTrue(component.SpecialFinancingEligible)) {
           specialEligible += lineAmount;
@@ -2288,8 +2334,57 @@
                     }
                   </span>
 
+                  <input
+                    class="component-quantity"
+                    type="number"
+                    min="${
+                      component._relationship
+                        ? positiveInteger(component._relationship.MinQty, 1)
+                        : 1
+                    }"
+                    max="${
+                      clean(component._relationship?.MaxQty) || ''
+                    }"
+                    step="1"
+                    value="${
+                      positiveInteger(
+                        appState.selection.componentQuantities[
+                          clean(component.ComponentID)
+                        ],
+                        component._relationship
+                          ? positiveInteger(component._relationship.MinQty, 1)
+                          : 1
+                      )
+                    }"
+                    data-component-id="${escapeHtml(component.ComponentID)}"
+                    ${
+                      component._relationship &&
+                      (
+                        isTrue(component._relationship.Required) ||
+                        ['Included', 'Requires'].includes(
+                          clean(component._relationship.RelationshipType)
+                        )
+                      ) &&
+                      clean(component._relationship.MaxQty) ===
+                        clean(component._relationship.MinQty)
+                        ? 'disabled'
+                        : ''
+                    }
+                    aria-label="Component quantity"
+                  >
+
                   <span class="component-price">
-                    ${formatMoney(component.Price)}
+                    ${formatMoney(
+                      money(component.Price) *
+                      positiveInteger(
+                        appState.selection.componentQuantities[
+                          clean(component.ComponentID)
+                        ],
+                        component._relationship
+                          ? positiveInteger(component._relationship.MinQty, 1)
+                          : 1
+                      )
+                    )}
                   </span>
                 </label>
               `;
@@ -2343,27 +2438,44 @@
           ? [...saved.componentIds]
           : [];
 
-      if (!saved) {
-        relationshipRowsForParent(productId)
-          .filter(row => (
-            isTrue(row.DefaultSelected) ||
-            isTrue(row.Required) ||
-            ['Included', 'Requires'].includes(
-              clean(row.RelationshipType)
-            )
-          ))
-          .forEach(row => {
-            const childId =
-              clean(row.ChildID);
+      appState.selection.componentQuantities =
+        saved && saved.componentQuantities
+          ? { ...saved.componentQuantities }
+          : {};
 
-            if (
-              childId &&
-              !appState.selection.componentIds.includes(childId)
-            ) {
-              appState.selection.componentIds.push(childId);
-            }
-          });
-      }
+      relationshipRowsForParent(productId)
+        .forEach(row => {
+          const childId =
+            clean(row.ChildID);
+
+          if (!childId) {
+            return;
+          }
+
+          const defaultQuantity =
+            positiveInteger(row.MinQty, 1);
+
+          if (
+            !appState.selection.componentQuantities[childId]
+          ) {
+            appState.selection.componentQuantities[childId] =
+              defaultQuantity;
+          }
+
+          if (
+            !saved &&
+            (
+              isTrue(row.DefaultSelected) ||
+              isTrue(row.Required) ||
+              ['Included', 'Requires'].includes(
+                clean(row.RelationshipType)
+              )
+            ) &&
+            !appState.selection.componentIds.includes(childId)
+          ) {
+            appState.selection.componentIds.push(childId);
+          }
+        });
 
       renderSelectedProduct();
 
@@ -2403,6 +2515,9 @@
         quantity,
         unitPrice: productUnitPrice(product),
         componentIds: [...appState.selection.componentIds],
+        componentQuantities: {
+          ...appState.selection.componentQuantities
+        },
         componentUnitTotal: componentsUnitTotal(),
         total: configurationUnitTotal(product) * quantity
       };
@@ -2594,12 +2709,74 @@
             if (!appState.selection.componentIds.includes(id)) {
               appState.selection.componentIds.push(id);
             }
+
+            if (!appState.selection.componentQuantities[id]) {
+              const minimum =
+                relationship
+                  ? positiveInteger(relationship.MinQty, 1)
+                  : 1;
+
+              appState.selection.componentQuantities[id] =
+                minimum;
+            }
           } else {
             appState.selection.componentIds =
               appState.selection.componentIds.filter(
                 componentId => clean(componentId) !== id
               );
           }
+
+          renderSelectedProduct();
+        }
+      );
+
+      byId('config-components').addEventListener(
+        'input',
+        event => {
+          const input =
+            event.target.closest('.component-quantity');
+
+          if (!input) {
+            return;
+          }
+
+          const id =
+            clean(input.dataset.componentId);
+
+          const component =
+            allComponents().find(
+              row =>
+                clean(row.ComponentID) === id
+            );
+
+          const relationship =
+            relationshipForProductComponent(
+              selectedProduct(),
+              component
+            );
+
+          const minQty =
+            relationship
+              ? positiveInteger(relationship.MinQty, 1)
+              : 1;
+
+          const maxQty =
+            positiveInteger(
+              relationship?.MaxQty,
+              Number.MAX_SAFE_INTEGER
+            );
+
+          const nextQty =
+            Math.min(
+              maxQty,
+              Math.max(
+                minQty,
+                positiveInteger(input.value, minQty)
+              )
+            );
+
+          appState.selection.componentQuantities[id] =
+            nextQty;
 
           renderSelectedProduct();
         }
