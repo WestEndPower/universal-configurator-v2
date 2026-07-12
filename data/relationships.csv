@@ -1,0 +1,7 @@
+﻿RelationshipID,ParentType,ParentID,ChildType,ChildID,RelationshipType,Required,DefaultSelected,MinQty,MaxQty,Note,Active,SortOrder
+REL-001,Product,TEST-001,Component,BAT-001,Requires,T,T,1,1,Battery required for this product.,T,1
+REL-002,Product,TEST-001,Component,CHG-001,Recommended,F,T,1,1,Recommended charger for this battery system.,T,2
+REL-003,Product,TEST-002,Component,CMP-001,Optional,F,F,1,1,Optional OEM mower cover.,T,3
+REL-004,Product,TEST-002,Component,CMP-003,Optional,F,F,1,1,Optional extended warranty.,T,4
+REL-005,Product,TEST-003,Component,BAT-002,Included,T,T,1,1,Battery included in this package.,T,5
+REL-006,Product,TEST-003,Component,CHG-002,Included,T,T,1,1,Charger included in this package.,T,6

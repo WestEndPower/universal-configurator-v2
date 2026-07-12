@@ -516,6 +516,28 @@
       font-weight: 800;
     }
 
+    .relationship-note {
+      display: inline-block;
+      margin-top: 6px;
+      margin-right: 5px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: #f4ebff;
+      color: #6941c6;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .relationship-note.required {
+      background: #fff1f0;
+      color: #b42318;
+    }
+
+    .relationship-note.included {
+      background: #e8f7ec;
+      color: var(--success-color);
+    }
+
 
     .configuration-header {
       display: flex;
@@ -726,6 +748,11 @@
         <div class="status-row">
           <div class="status-label">Chargers</div>
           <div class="status-value loading" id="status-chargers">Waiting...</div>
+        </div>
+
+        <div class="status-row">
+          <div class="status-label">Relationships</div>
+          <div class="status-value loading" id="status-relationships">Waiting...</div>
         </div>
       </div>
 
@@ -1002,7 +1029,8 @@
         components: [],
         compatibility: [],
         batteries: [],
-        chargers: []
+        chargers: [],
+        relationships: []
       },
       filters: {
         keyword: '',
@@ -1932,19 +1960,90 @@
       ];
     }
 
+    function relationshipRowsForParent(parentId) {
+      const id = clean(parentId);
+
+      return appState.data.relationships
+        .filter(row => isTrue(row.Active))
+        .filter(row => clean(row.ParentID) === id)
+        .sort(
+          (first, second) =>
+            money(first.SortOrder) - money(second.SortOrder)
+        );
+    }
+
+    function relationshipForProductComponent(
+      product,
+      component
+    ) {
+      if (!product || !component) {
+        return null;
+      }
+
+      const productId =
+        clean(product.ProductID);
+
+      const componentId =
+        clean(component.ComponentID);
+
+      return relationshipRowsForParent(productId).find(
+        row => clean(row.ChildID) === componentId
+      ) || null;
+    }
+
+    function relationshipLabel(row) {
+      const type =
+        clean(row?.RelationshipType);
+
+      if (!type) {
+        return '';
+      }
+
+      const qtyMin =
+        positiveInteger(row.MinQty, 1);
+
+      const qtyMax =
+        clean(row.MaxQty);
+
+      const quantityText =
+        qtyMax
+          ? `Qty ${qtyMin}-${qtyMax}`
+          : `Qty ${qtyMin}+`;
+
+      return `${type} • ${quantityText}`;
+    }
+
     function componentsForProduct(product) {
       if (!product) {
         return [];
       }
+
+      const relationshipChildIds =
+        new Set(
+          relationshipRowsForParent(product.ProductID)
+            .map(row => clean(row.ChildID))
+            .filter(Boolean)
+        );
 
       return allComponents()
         .filter(component => isTrue(component.Active))
         .map(component => ({
           ...component,
           _compatibility:
-            componentCompatibilityResult(product, component)
+            componentCompatibilityResult(product, component),
+
+          _relationship:
+            relationshipForProductComponent(
+              product,
+              component
+            )
         }))
-        .filter(component => component._compatibility.compatible)
+        .filter(component => (
+          component._compatibility.compatible ||
+          relationshipChildIds.has(
+            clean(component.ComponentID)
+          )
+        ))
         .sort(
           (first, second) =>
             money(first.SortOrder) - money(second.SortOrder)
@@ -2103,6 +2202,17 @@
                     class="config-component-checkbox"
                     value="${escapeHtml(componentId)}"
                     ${checked ? 'checked' : ''}
+                    ${
+                      component._relationship &&
+                      (
+                        isTrue(component._relationship.Required) ||
+                        ['Included', 'Requires'].includes(
+                          clean(component._relationship.RelationshipType)
+                        )
+                      )
+                        ? 'disabled'
+                        : ''
+                    }
                   >
 
                   <span>
@@ -2155,6 +2265,23 @@
                         ? `
                           <span class="compatibility-note">
                             ${escapeHtml(component._compatibility.reason)}
+                          </span>
+                        `
+                        : ''
+                    }
+
+
+                    ${
+                      component._relationship
+                        ? `
+                          <span class="relationship-note ${
+                            clean(component._relationship.RelationshipType).toLowerCase()
+                          }">
+                            ${escapeHtml(
+                              relationshipLabel(
+                                component._relationship
+                              )
+                            )}
                           </span>
                         `
                         : ''
@@ -2215,6 +2342,28 @@
         saved && Array.isArray(saved.componentIds)
           ? [...saved.componentIds]
           : [];
+
+      if (!saved) {
+        relationshipRowsForParent(productId)
+          .filter(row => (
+            isTrue(row.DefaultSelected) ||
+            isTrue(row.Required) ||
+            ['Included', 'Requires'].includes(
+              clean(row.RelationshipType)
+            )
+          ))
+          .forEach(row => {
+            const childId =
+              clean(row.ChildID);
+
+            if (
+              childId &&
+              !appState.selection.componentIds.includes(childId)
+            ) {
+              appState.selection.componentIds.push(childId);
+            }
+          });
+      }
 
       renderSelectedProduct();
 
@@ -2412,6 +2561,35 @@
 
           const id = clean(checkbox.value);
 
+          const product =
+            selectedProduct();
+
+          const component =
+            allComponents().find(
+              row =>
+                clean(row.ComponentID) === id
+            );
+
+          const relationship =
+            relationshipForProductComponent(
+              product,
+              component
+            );
+
+          const locked =
+            relationship &&
+            (
+              isTrue(relationship.Required) ||
+              ['Included', 'Requires'].includes(
+                clean(relationship.RelationshipType)
+              )
+            );
+
+          if (locked && !checkbox.checked) {
+            checkbox.checked = true;
+            return;
+          }
+
           if (checkbox.checked) {
             if (!appState.selection.componentIds.includes(id)) {
               appState.selection.componentIds.push(id);
@@ -2499,6 +2677,39 @@
 
         setStatus(
           'compatibility',
+          message,
+          'error'
+        );
+      }
+    }
+
+    async function loadRelationships() {
+      const path =
+        clean(appState.brand?.relationshipDataPath) ||
+        'data/relationships.csv';
+
+      try {
+        const rows =
+          await loadDataFile(
+            'relationships',
+            path
+          );
+
+        setStatus(
+          'relationships',
+          `Loaded ${rows.length} row(s): ${path}`,
+          'success'
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : String(error);
+
+        appState.startupErrors.push(message);
+
+        setStatus(
+          'relationships',
           message,
           'error'
         );
@@ -2747,6 +2958,7 @@
         await loadComponents();
         await loadBatteries();
         await loadChargers();
+        await loadRelationships();
         await loadProducts();
       }
 

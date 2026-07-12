@@ -11,5 +11,6 @@
   "componentDataPath": "data/components.csv",
   "compatibilityDataPath": "data/compatibility.csv",
   "batteryDataPath": "data/batteries.csv",
-  "chargerDataPath": "data/chargers.csv"
+  "chargerDataPath": "data/chargers.csv",
+  "relationshipDataPath": "data/relationships.csv"
 }

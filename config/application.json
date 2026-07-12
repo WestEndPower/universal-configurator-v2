@@ -1,6 +1,6 @@
 {
   "applicationName": "Universal Equipment Configurator",
-  "applicationVersion": "2.0.11",
+  "applicationVersion": "2.0.12",
   "defaultBrandId": "",
   "defaultDealerId": "",
   "currency": "USD",
@@ -14,7 +14,7 @@
   "enableFleetPrograms": true,
   "enableTradeIns": true,
   "enableTaxExempt": true,
-  "dataVersion": "11",
+  "dataVersion": "12",
   "layout": {
     "compactMode": true,
     "invoiceStyle": true,

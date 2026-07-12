@@ -1,5 +1,14 @@
 # Universal Configurator V2
 
+## V2.12
+- Added universal relationship engine
+- Added Requires, Included, Recommended, Optional relationship types
+- Added default-selected and required relationship behavior
+- Added quantity limits to relationship data
+- Added relationship labels on components
+- Added data/relationships.csv
+
+
 ## V2.11
 - Added separate batteries.csv and chargers.csv
 - Merged battery and charger data into the universal component engine
