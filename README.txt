@@ -1,10 +1,7 @@
-Universal Configurator V3.4.0 Update
+Universal Configurator V3.5.2 Update
 
-INSTALL
-1. Back up and commit V3.3.0.
-2. Copy this update over the project.
-3. Do not replace existing dealer settings or live data/finance-programs.csv.
-4. To test finance eligibility, copy templates/finance-programs.csv to data/finance-programs.csv only if no live file exists.
-5. Run through VS Code Live Server.
+Copy the contents of V3.5.2_Update over V3.4.0 and replace included platform files.
+Keep existing dealer settings and live data files.
 
-V3.4.0 adds the Universal Finance Engine, Finance inspector tab, eligibility/rejection diagnostics, monthly-payment calculations, application fees, minimum down payments, and dealer participation fees.
+Test: configure a product, enter optional customer details, click Preview / Print Quote, and confirm quote.html opens with matching totals.
+Run through VS Code Live Server.

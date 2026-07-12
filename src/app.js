@@ -51,6 +51,12 @@
         }
       },
       startupErrors: [],
+      quote: {
+        customer: {},
+        preparedBy: '',
+        validThrough: '',
+        terms: ''
+      },
       developer: {
         panelOpen: false,
         roundTestPrices: false,
@@ -2339,6 +2345,7 @@
       byId('diagnostic-promotions').textContent = JSON.stringify({ loadedPromotions: appState.data.promotions, evaluation: appState.configuration?.promotions || null }, null, 2);
       byId('diagnostic-freight').textContent = JSON.stringify({ loadedFreightRules: appState.data.freightRules, evaluation: appState.configuration?.freight || null }, null, 2);
       byId('diagnostic-finance').textContent = JSON.stringify({ loadedFinancePrograms: appState.data.financePrograms, evaluation: appState.configuration?.finance || null }, null, 2);
+      byId('diagnostic-documents').textContent = JSON.stringify({ engine: window.UniversalCPQ?.registry?.getEngine('documents')?.name || 'Unavailable', currentQuote: appState.configuration?.items?.length ? buildCurrentQuote() : null }, null, 2);
 
       const performanceLines = [];
       const performanceData = appState.configuration?.performance;
@@ -2481,6 +2488,7 @@
         promotions: appState.configuration?.promotions || null,
         freight: appState.configuration?.freight || null,
         finance: appState.configuration?.finance || null,
+        quote: appState.configuration?.items?.length ? buildCurrentQuote() : null,
         health: buildHealthReport(),
         ruleTrace: rules,
         performance: {
@@ -2547,6 +2555,63 @@
       }
 
       renderDeveloperDiagnostics();
+    }
+
+
+    function readQuoteForm() {
+      const field = id => clean(byId(id)?.value);
+      appState.quote = {
+        customer: {
+          name: field('quote-customer-name'),
+          business: field('quote-business-name'),
+          phone: field('quote-phone'),
+          email: field('quote-email'),
+          address: field('quote-address'),
+          city: field('quote-city'),
+          state: field('quote-state'),
+          zip: field('quote-zip'),
+          notes: field('quote-notes')
+        },
+        preparedBy: field('quote-prepared-by'),
+        validThrough: field('quote-valid-through'),
+        terms: field('quote-terms')
+      };
+      return appState.quote;
+    }
+
+    function buildCurrentQuote() {
+      const documentEngine = window.UniversalCPQ?.registry?.getEngine('documents');
+      if (!documentEngine || typeof documentEngine.buildQuote !== 'function') {
+        throw new Error('Universal Quote & Document Engine is unavailable.');
+      }
+      const form = readQuoteForm();
+      return documentEngine.buildQuote({
+        configuration: appState.configuration,
+        customer: form.customer,
+        preparedBy: form.preparedBy,
+        validThrough: form.validThrough,
+        terms: form.terms,
+        dealer: appState.dealer,
+        brand: appState.brand,
+        application: appState.application
+      });
+    }
+
+    function previewQuote() {
+      calculateConfiguration();
+      if (!appState.configuration?.items?.length) {
+        window.alert('Add at least one configured product before creating a quote.');
+        return;
+      }
+      try {
+        const documentEngine = window.UniversalCPQ?.registry?.getEngine('documents');
+        const quote = buildCurrentQuote();
+        documentEngine.saveQuoteSession(quote);
+        window.open('quote.html', '_blank', 'noopener');
+      } catch (error) {
+        console.error(error);
+        window.alert(error instanceof Error ? error.message : String(error));
+      }
     }
 
     function bindApplicationEvents() {
@@ -2768,6 +2833,8 @@
         'click',
         removeConfiguration
       );
+
+      byId('preview-quote').addEventListener('click', previewQuote);
 
       byId('continue-shopping').addEventListener(
         'click',

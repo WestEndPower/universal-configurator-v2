@@ -800,6 +800,26 @@
     .inspector-pane { display:none; }
     .inspector-pane.active { display:block; }
 
+
+    .quote-builder {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-color);
+    }
+    .quote-form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .quote-form-grid .span-2 { grid-column: span 2; }
+    .quote-form-grid .span-4 { grid-column: 1 / -1; }
+    .quote-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
+    textarea { width:100%; min-height:72px; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font:inherit; }
+    @media (max-width: 760px) {
+      .quote-form-grid { grid-template-columns: 1fr 1fr; }
+      .quote-form-grid .span-4 { grid-column: 1 / -1; }
+    }
+
   </style>
 </head>
 
@@ -823,7 +843,7 @@
           </button>
 
           <div class="version-badge" id="version-badge">
-            Version 3.4.0
+            Version 3.5.4
           </div>
         </div>
       </div>
@@ -929,6 +949,7 @@
         <button class="inspector-tab" data-pane="promotions" type="button">Promotions</button>
         <button class="inspector-tab" data-pane="freight" type="button">Freight</button>
         <button class="inspector-tab" data-pane="finance" type="button">Finance</button>
+        <button class="inspector-tab" data-pane="documents" type="button">Documents</button>
         <button class="inspector-tab" data-pane="dealer-rules" type="button">Dealer Rules</button>
         <button class="inspector-tab" data-pane="relationships" type="button">Relationships</button>
         <button class="inspector-tab" data-pane="data" type="button">Data Loaded</button>
@@ -961,6 +982,10 @@
 
       <div class="inspector-pane" data-pane-content="finance">
         <pre class="diagnostic-json" id="diagnostic-finance">No finance programs evaluated.</pre>
+      </div>
+
+      <div class="inspector-pane" data-pane-content="documents">
+        <pre class="diagnostic-json" id="diagnostic-documents">No document generated.</pre>
       </div>
 
       <div class="inspector-pane" data-pane-content="dealer-rules">
@@ -1110,6 +1135,25 @@
         <span>Equipment Subtotal</span>
         <strong id="configuration-total">$0.00</strong>
       </div>
+
+      <div class="quote-builder">
+        <h3 style="margin:0 0 12px;">Customer Quote</h3>
+        <div class="quote-form-grid">
+          <div><label for="quote-prepared-by">Prepared By</label><input id="quote-prepared-by" type="text" placeholder="Salesperson"></div>
+          <div><label for="quote-valid-through">Valid Through</label><input id="quote-valid-through" type="date"></div>
+          <div><label for="quote-customer-name">Customer</label><input id="quote-customer-name" type="text" placeholder="Customer name"></div>
+          <div><label for="quote-business-name">Business</label><input id="quote-business-name" type="text" placeholder="Business name"></div>
+          <div><label for="quote-phone">Phone</label><input id="quote-phone" type="tel" placeholder="Phone"></div>
+          <div><label for="quote-email">Email</label><input id="quote-email" type="email" placeholder="Email"></div>
+          <div class="span-2"><label for="quote-address">Address</label><input id="quote-address" type="text" placeholder="Street address"></div>
+          <div><label for="quote-city">City</label><input id="quote-city" type="text"></div>
+          <div><label for="quote-state">State</label><input id="quote-state" type="text"></div>
+          <div><label for="quote-zip">ZIP</label><input id="quote-zip" type="text"></div>
+          <div class="span-4"><label for="quote-notes">Notes</label><textarea id="quote-notes" placeholder="Optional quote notes"></textarea></div>
+          <div class="span-4"><label for="quote-terms">Terms</label><textarea id="quote-terms" placeholder="Optional terms and conditions"></textarea></div>
+        </div>
+        <div class="quote-actions"><button class="button primary" id="preview-quote" type="button">Preview / Print Quote</button></div>
+      </div>
     </section>
 
     <section class="card" id="product-config-card" hidden>
@@ -1240,6 +1284,7 @@
   <script src="src/business/freight.js"></script>
   <script src="src/business/financing.js"></script>
   <script src="src/business/tax.js"></script>
+  <script src="src/business/documents.js"></script>
   <script src="src/app.js"></script>
   <script src="src/core/adapters.js"></script>
 </body>
