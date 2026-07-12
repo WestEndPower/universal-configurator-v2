@@ -1,21 +1,13 @@
-Universal Configurator V2.16.0 Update
+UNIVERSAL CONFIGURATOR V2.17.0 UPDATE
 
-Install over V2.15.2. Replace only the included files.
-Dealer settings, dealer branding, and saved quote data are not included and are never overwritten.
+Install over the tested V2.16.0 project.
 
-Added Universal Pricing Engine foundation:
-- One normalized priceLine() calculation path
-- One calculateConfiguration() source for saved configuration totals
-- Product and component subtotals
-- Reserved freight, promotions, and tax totals
-- Configuration schema version 1.1
+Adds:
+- Universal Rules Engine foundation
+- Required/included component quantity validation
+- Standard rule result with pass/fail, errors, warnings, adjustments, and stages
+- Tabbed CPQ Inspector
+- Configuration, Pricing, Rule Trace, Relationships, Data Loaded, and Debug Log views
+- Extension stages for promotions, freight, dealer rules, and finance
 
-Added Calculation Trace to Developer Diagnostics:
-- Each product and component line
-- Quantity x unit price = line amount
-- Product subtotal
-- Component subtotal
-- Freight, promotions, and tax placeholders
-- Final total
-
-Round Test Mode remains session-only and does not edit CSV files.
+Dealer settings are not included and are never overwritten.

@@ -773,6 +773,33 @@
 
     .round-test-banner.active { display: block; }
 
+    .inspector-tabs {
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      margin:16px 0 12px;
+      border-bottom:1px solid #ddd;
+      padding-bottom:8px;
+    }
+
+    .inspector-tab {
+      border:1px solid #ccc;
+      background:#fff;
+      border-radius:7px;
+      padding:8px 11px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .inspector-tab.active {
+      background:#111;
+      color:#fff;
+      border-color:#111;
+    }
+
+    .inspector-pane { display:none; }
+    .inspector-pane.active { display:block; }
+
   </style>
 </head>
 
@@ -792,7 +819,7 @@
 
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
           <button class="button" id="toggle-developer-panel" type="button">
-            Developer Diagnostics
+            CPQ Inspector
           </button>
 
           <div class="version-badge" id="version-badge">
@@ -860,14 +887,14 @@
       <div class="error-panel" id="error-panel"></div>
 
       <div class="app-ready-panel" id="app-ready-panel">
-        Version 2.0.16.0 configuration and product data loaded successfully.
+        Version 2.0.17.0 configuration, pricing, and rules engine loaded successfully.
       </div>
     </section>
 
     <section class="card developer-panel" id="developer-panel">
       <div class="developer-toolbar">
         <div>
-          <h2 style="margin-bottom:6px;">Developer Diagnostics</h2>
+          <h2 style="margin-bottom:6px;">CPQ Inspector</h2>
           <p class="developer-note">
             Session-only testing tools. Dealer files and CSV data are never changed.
           </p>
@@ -889,11 +916,44 @@
         <div class="summary-box"><div class="summary-label">Configured Items</div><div class="summary-value" id="diag-items">0</div></div>
       </div>
 
-      <h3 style="margin:18px 0 8px;">Calculation Trace</h3>
-      <pre class="diagnostic-json" id="diagnostic-trace">No configured items.</pre>
+      <div class="inspector-tabs" id="inspector-tabs">
+        <button class="inspector-tab active" data-pane="configuration" type="button">Configuration</button>
+        <button class="inspector-tab" data-pane="pricing" type="button">Pricing</button>
+        <button class="inspector-tab" data-pane="rules" type="button">Rule Trace</button>
+        <button class="inspector-tab" data-pane="relationships" type="button">Relationships</button>
+        <button class="inspector-tab" data-pane="data" type="button">Data Loaded</button>
+        <button class="inspector-tab" data-pane="debug" type="button">Debug Log</button>
+      </div>
 
-      <h3 style="margin:18px 0 8px;">CPQ Object</h3>
-      <pre class="diagnostic-json" id="diagnostic-json">Diagnostics will appear after startup.</pre>
+      <div class="inspector-pane active" data-pane-content="configuration">
+        <h3 style="margin:0 0 8px;">Normalized CPQ Configuration</h3>
+        <pre class="diagnostic-json" id="diagnostic-configuration">No configured items.</pre>
+      </div>
+
+      <div class="inspector-pane" data-pane-content="pricing">
+        <h3 style="margin:0 0 8px;">Calculation Trace</h3>
+        <pre class="diagnostic-json" id="diagnostic-trace">No configured items.</pre>
+      </div>
+
+      <div class="inspector-pane" data-pane-content="rules">
+        <h3 style="margin:0 0 8px;">Universal Rule Trace</h3>
+        <pre class="diagnostic-json" id="diagnostic-rules">No rules evaluated.</pre>
+      </div>
+
+      <div class="inspector-pane" data-pane-content="relationships">
+        <h3 style="margin:0 0 8px;">Relationship Data</h3>
+        <pre class="diagnostic-json" id="diagnostic-relationships">No relationship data.</pre>
+      </div>
+
+      <div class="inspector-pane" data-pane-content="data">
+        <h3 style="margin:0 0 8px;">Loaded Data</h3>
+        <pre class="diagnostic-json" id="diagnostic-data">Data has not loaded.</pre>
+      </div>
+
+      <div class="inspector-pane" data-pane-content="debug">
+        <h3 style="margin:0 0 8px;">Debug Log</h3>
+        <pre class="diagnostic-json" id="diagnostic-json">Diagnostics will appear after startup.</pre>
+      </div>
     </section>
 
     <section class="card" id="product-search-card" hidden>
@@ -1194,7 +1254,8 @@
       startupErrors: [],
       developer: {
         panelOpen: false,
-        roundTestPrices: false
+        roundTestPrices: false,
+        activeInspectorPane: 'configuration'
       }
     };
 
@@ -1747,6 +1808,75 @@
       };
     }
 
+    function activeRelationshipsForProduct(productId) {
+      return appState.data.relationships.filter(row =>
+        normalized(row.ParentProductID) === normalized(productId) &&
+        !['false', 'f', '0', 'no', 'n'].includes(normalized(row.Active))
+      );
+    }
+
+    function runUniversalRules(items) {
+      const result = {
+        engineVersion: '1.0',
+        passed: true,
+        errors: [],
+        warnings: [],
+        adjustments: [],
+        stages: []
+      };
+
+      const validationStage = {
+        stage: 'Validation',
+        status: 'PASS',
+        messages: []
+      };
+
+      items.forEach(item => {
+        const relationships = activeRelationshipsForProduct(item.productId);
+        relationships.forEach(rule => {
+          const relationshipType = normalized(rule.RelationshipType);
+          if (relationshipType !== 'requires' && relationshipType !== 'included') return;
+
+          const componentId = clean(rule.ChildComponentID);
+          const component = item.components.find(line =>
+            normalized(line.componentId) === normalized(componentId)
+          );
+          const minimumPerProduct = positiveInteger(rule.MinQty, 1);
+          const requiredTotal = minimumPerProduct * item.quantity;
+          const actualTotal = component ? component.quantity : 0;
+
+          if (actualTotal < requiredTotal) {
+            const message = `${item.name}: ${componentId} requires quantity ${requiredTotal}; configured ${actualTotal}.`;
+            result.errors.push({ code: 'REQUIRED_COMPONENT_QUANTITY', productId: item.productId, componentId, message });
+            validationStage.messages.push(`FAIL • ${message}`);
+          } else {
+            validationStage.messages.push(`PASS • ${item.name}: ${componentId} quantity ${actualTotal}/${requiredTotal}.`);
+          }
+        });
+      });
+
+      if (result.errors.length) {
+        validationStage.status = 'FAIL';
+        result.passed = false;
+      } else if (!validationStage.messages.length) {
+        validationStage.messages.push('PASS • No required-component violations.');
+      }
+      result.stages.push(validationStage);
+
+      [
+        ['Compatibility', 'Relationship-driven compatibility already applied.'],
+        ['Pricing', 'Shared Universal Pricing Engine completed.'],
+        ['Promotions', 'No promotion rules configured.'],
+        ['Freight', 'No freight rules configured.'],
+        ['Dealer Rules', 'No dealer rules configured.'],
+        ['Finance', 'No finance rules configured.']
+      ].forEach(([stage, message]) => {
+        result.stages.push({ stage, status: 'PASS', messages: [message] });
+      });
+
+      return result;
+    }
+
     function calculateConfiguration() {
       const items = Object.values(appState.cart).map(item => {
         const product = productById(item.productId);
@@ -1831,7 +1961,7 @@
       });
 
       appState.configuration = {
-        schemaVersion: '1.1',
+        schemaVersion: '1.2',
         applicationId:
           clean(appState.application?.applicationName),
         applicationVersion:
@@ -1844,6 +1974,7 @@
         pricing: {
           trace
         },
+        rules: runUniversalRules(items),
         totals: {
           productSubtotal,
           componentSubtotal,
@@ -3094,6 +3225,19 @@
         ? 'Disable Round Test Prices'
         : 'Enable Round Test Prices';
 
+      document.querySelectorAll('.inspector-tab').forEach(button => {
+        button.classList.toggle(
+          'active',
+          button.dataset.pane === appState.developer.activeInspectorPane
+        );
+      });
+      document.querySelectorAll('.inspector-pane').forEach(pane => {
+        pane.classList.toggle(
+          'active',
+          pane.dataset.paneContent === appState.developer.activeInspectorPane
+        );
+      });
+
       byId('diag-products').textContent = activeProducts().length;
       byId('diag-components').textContent = allComponents().length;
       byId('diag-relationships').textContent = appState.data.relationships.length;
@@ -3158,6 +3302,39 @@
 
       byId('diagnostic-trace').textContent = traceLines.join('\n');
 
+      byId('diagnostic-configuration').textContent = JSON.stringify(
+        appState.configuration,
+        null,
+        2
+      );
+
+      const ruleLines = [];
+      const rules = appState.configuration?.rules;
+      if (!rules?.stages?.length) {
+        ruleLines.push('No rules evaluated.');
+      } else {
+        ruleLines.push(`Overall: ${rules.passed ? 'PASS' : 'FAIL'}`);
+        ruleLines.push('');
+        rules.stages.forEach(stage => {
+          ruleLines.push(`${stage.stage}: ${stage.status}`);
+          (stage.messages || []).forEach(message => ruleLines.push(`  ${message}`));
+          ruleLines.push('');
+        });
+      }
+      byId('diagnostic-rules').textContent = ruleLines.join('\n');
+
+      byId('diagnostic-relationships').textContent = JSON.stringify(
+        appState.data.relationships,
+        null,
+        2
+      );
+
+      byId('diagnostic-data').textContent = JSON.stringify(
+        diagnostics.loadedRows,
+        null,
+        2
+      );
+
       byId('diagnostic-json').textContent = JSON.stringify(
         diagnostics,
         null,
@@ -3185,6 +3362,13 @@
           renderDeveloperDiagnostics();
         }
       );
+
+      byId('inspector-tabs').addEventListener('click', event => {
+        const button = event.target.closest('.inspector-tab');
+        if (!button) return;
+        appState.developer.activeInspectorPane = button.dataset.pane;
+        renderDeveloperDiagnostics();
+      });
 
       byId('toggle-round-test-prices').addEventListener(
         'click',
