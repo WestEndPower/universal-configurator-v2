@@ -432,14 +432,103 @@
       margin-top: 16px;
     }
 
+
+    .configuration-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .configuration-heading {
+      margin: 0;
+    }
+
+    .configuration-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .configuration-lines {
+      display: grid;
+      gap: 10px;
+    }
+
+    .configuration-line {
+      display: grid;
+      grid-template-columns: 80px minmax(0, 1fr) 130px 170px;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 9px;
+      background: #fff;
+    }
+
+    .configuration-line-qty {
+      font-weight: 900;
+    }
+
+    .configuration-line-name {
+      font-weight: 900;
+    }
+
+    .configuration-line-meta {
+      margin-top: 4px;
+      color: var(--muted-text);
+      font-size: 12px;
+    }
+
+    .configuration-line-total {
+      font-weight: 900;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .configuration-line-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .configuration-total {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 2px solid var(--brand-primary);
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .button.danger {
+      border-color: #d92d20;
+      color: #b42318;
+      background: #fff;
+    }
+
     @media (max-width: 900px) {
       .filter-grid,
       .config-grid {
         grid-template-columns: 1fr 1fr;
       }
 
-      .product-summary {
+      .product-summary,
+      .configuration-summary-grid {
         grid-template-columns: 1fr 1fr;
+      }
+
+      .configuration-line {
+        grid-template-columns: 70px minmax(0, 1fr) 120px;
+      }
+
+      .configuration-line-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
       }
     }
 
@@ -454,9 +543,24 @@
       .product-row,
       .filter-grid,
       .product-summary,
+      .configuration-summary-grid,
+      .configuration-line,
       .config-grid,
       .spec-grid {
         grid-template-columns: 1fr;
+      }
+
+      .configuration-line-total {
+        text-align: left;
+      }
+
+      .configuration-line-actions {
+        grid-column: auto;
+      }
+
+      .configuration-total {
+        align-items: flex-start;
+        flex-direction: column;
       }
 
       .filter-footer {
@@ -607,6 +711,49 @@
       </div>
 
       <div class="product-list" id="product-list"></div>
+    </section>
+
+    <section class="card" id="current-configuration-card" hidden>
+      <div class="configuration-header">
+        <h2 class="configuration-heading">
+          Current Configuration
+        </h2>
+
+        <button
+          class="button"
+          id="continue-shopping"
+          type="button"
+        >
+          Continue Shopping
+        </button>
+      </div>
+
+      <div class="configuration-summary-grid">
+        <div class="summary-box">
+          <div class="summary-label">Configured Products</div>
+          <div class="summary-value" id="configuration-product-count">0</div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-label">Total Units</div>
+          <div class="summary-value" id="configuration-unit-count">0</div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-label">Equipment Subtotal</div>
+          <div class="summary-value" id="configuration-subtotal">$0.00</div>
+        </div>
+      </div>
+
+      <div
+        class="configuration-lines"
+        id="configuration-lines"
+      ></div>
+
+      <div class="configuration-total">
+        <span>Equipment Subtotal</span>
+        <strong id="configuration-total">$0.00</strong>
+      </div>
     </section>
 
     <section class="card" id="product-config-card" hidden>
@@ -1189,6 +1336,99 @@
       });
     }
 
+    function configurationSubtotal() {
+      return Object.values(appState.cart).reduce(
+        (total, item) =>
+          total + money(item.total),
+        0
+      );
+    }
+
+    function productById(productId) {
+      return activeProducts().find(
+        product =>
+          clean(product.ProductID) === clean(productId)
+      ) || null;
+    }
+
+    function renderCurrentConfiguration() {
+      const entries = Object.values(appState.cart);
+      const card = byId('current-configuration-card');
+
+      if (!entries.length) {
+        card.hidden = true;
+        byId('configuration-lines').innerHTML = '';
+        return;
+      }
+
+      byId('configuration-product-count').textContent =
+        String(configuredProductsCount());
+
+      byId('configuration-unit-count').textContent =
+        String(configuredUnitsCount());
+
+      byId('configuration-subtotal').textContent =
+        formatMoney(configurationSubtotal());
+
+      byId('configuration-total').textContent =
+        formatMoney(configurationSubtotal());
+
+      byId('configuration-lines').innerHTML =
+        entries.map(item => {
+          const product = productById(item.productId);
+
+          if (!product) {
+            return '';
+          }
+
+          return `
+            <article class="configuration-line">
+              <div class="configuration-line-qty">
+                Qty ${positiveInteger(item.quantity, 1)}
+              </div>
+
+              <div>
+                <div class="configuration-line-name">
+                  ${escapeHtml(product.ProductName)}
+                </div>
+
+                <div class="configuration-line-meta">
+                  ${[
+                    product.Model,
+                    product.SKU,
+                    product.Category
+                  ].map(clean).filter(Boolean).map(escapeHtml).join(' • ')}
+                </div>
+              </div>
+
+              <div class="configuration-line-total">
+                ${formatMoney(item.total)}
+              </div>
+
+              <div class="configuration-line-actions">
+                <button
+                  class="button edit-configuration-line"
+                  type="button"
+                  data-product-id="${escapeHtml(item.productId)}"
+                >
+                  Edit
+                </button>
+
+                <button
+                  class="button danger remove-configuration-line"
+                  type="button"
+                  data-product-id="${escapeHtml(item.productId)}"
+                >
+                  Remove
+                </button>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+      card.hidden = false;
+    }
+
     function renderProducts() {
       const allProducts =
         appState.data.products;
@@ -1287,6 +1527,7 @@
             `;
 
       byId('product-search-card').hidden = false;
+      renderCurrentConfiguration();
     }
 
     function renderSelectedProduct() {
@@ -1481,6 +1722,26 @@
       renderSelectedProduct();
     }
 
+    function removeCartProduct(productId) {
+      delete appState.cart[clean(productId)];
+
+      renderProducts();
+      renderCurrentConfiguration();
+    }
+
+    function showConfigurationSummary() {
+      renderCurrentConfiguration();
+
+      if (!configuredProductsCount()) {
+        return;
+      }
+
+      byId('current-configuration-card').scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+
     function bindApplicationEvents() {
       [
         'filter-keyword',
@@ -1551,6 +1812,40 @@
       byId('remove-configuration').addEventListener(
         'click',
         removeConfiguration
+      );
+
+      byId('continue-shopping').addEventListener(
+        'click',
+        () => {
+          byId('product-search-card').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      );
+
+      byId('configuration-lines').addEventListener(
+        'click',
+        event => {
+          const editButton =
+            event.target.closest('.edit-configuration-line');
+
+          if (editButton) {
+            showProductConfiguration(
+              editButton.dataset.productId
+            );
+            return;
+          }
+
+          const removeButton =
+            event.target.closest('.remove-configuration-line');
+
+          if (removeButton) {
+            removeCartProduct(
+              removeButton.dataset.productId
+            );
+          }
+        }
       );
     }
 
