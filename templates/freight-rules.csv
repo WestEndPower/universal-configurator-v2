@@ -1,0 +1,4 @@
+RuleID,Active,BrandID,ProductID,SKU,Category,System,FreightGroup,ChargeType,Basis,Amount,Percent,ApplyPer,MinQty,MaxQty,DeliveryMethod,SpecialOrder,MinimumCharge,MaximumCharge,Priority,DisplayLabel,Notes
+FRT-TEST-200-1,T,,TEST-002,,Mowers,,Mowers,Fixed,SellingPrice,100,0,Line,1,2,All,,0,0,10,Factory Freight,Test fixed freight for quantities 1-2
+FRT-TEST-200-3,T,,TEST-002,,Mowers,,Mowers,None,SellingPrice,0,0,Line,3,999,All,,0,0,10,Factory Freight,Free freight for quantities 3+
+FRT-B-SYSTEM,T,,,,,B-System,Handheld,Percent,DealerCost,0,5,Line,1,999,All,,25,250,20,Factory Freight,Five percent of dealer cost with limits

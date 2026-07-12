@@ -20,7 +20,8 @@
         chargers: [],
         relationships: [],
         dealerRules: [],
-        promotions: []
+        promotions: [],
+        freightRules: []
       },
       filters: {
         keyword: '',
@@ -613,7 +614,7 @@
       );
     }
 
-    function runUniversalRules(items, calculatedTotals = {}, promotionEvaluation = null) {
+    function runUniversalRules(items, calculatedTotals = {}, promotionEvaluation = null, freightEvaluation = null) {
       const engineStarted = performance.now();
       const result = {
         engineVersion: '1.1',
@@ -703,7 +704,22 @@
         };
       });
 
-      timeStage('Freight', () => ({ stage:'Freight', status:'PASS', messages:['No freight rules configured.'] }));
+      timeStage('Freight', () => {
+        const evaluation = freightEvaluation || {
+          status: 'NOT_CONFIGURED',
+          messages: ['Freight Engine is unavailable.'],
+          evaluated: [], applied: [], rejected: [], adjustments: [], charge: 0
+        };
+        result.adjustments.push(...(evaluation.adjustments || []));
+        result.warnings.push(...(evaluation.warnings || []));
+        result.errors.push(...(evaluation.errors || []));
+        return {
+          stage: 'Freight',
+          status: evaluation.status || 'PASS',
+          messages: evaluation.messages || [],
+          details: evaluation
+        };
+      });
 
       timeStage('Dealer Rules', () => {
         const engine = window.UniversalCPQ?.registry?.getEngine('dealer-rules');
@@ -742,7 +758,10 @@
       result.performance.totalMs = performance.now() - engineStarted;
       result.statistics = {
         rulesExecuted: result.stages.length,
-        rulesPassed: result.stages.filter(stage => stage.status === 'PASS').length,
+        rulesPassed: result.stages.filter(stage => ['PASS','APPLIED'].includes(stage.status)).length,
+        rulesNotConfigured: result.stages.filter(stage => stage.status === 'NOT_CONFIGURED').length,
+        rulesSkipped: result.stages.filter(stage => stage.status === 'SKIPPED').length,
+        rulesFailed: result.stages.filter(stage => ['FAIL','BLOCKED'].includes(stage.status)).length,
         warnings: result.warnings.length,
         errors: result.errors.length
       };
@@ -791,6 +810,9 @@
           model: clean(product.Model),
           name: clean(product.ProductName),
           category: clean(product.Category),
+          system: clean(product.System),
+          freightGroup: clean(product.FreightGroup || product.DeliveryGroup || product.Category),
+          brandId: clean(product.BrandID || appState.brand?.brandId),
           quantity,
           unitPrice: productLine.unitPrice,
           productTotal: productLine.lineTotal,
@@ -862,6 +884,22 @@
       const adjustedGrossProfit = dealerCostSubtotal > 0 ? adjustedSubtotal - dealerCostSubtotal + money(promotionEvaluation.dealerFunding) : null;
       const adjustedGrossMarginPercent = adjustedGrossProfit === null || adjustedSubtotal <= 0 ? null : (adjustedGrossProfit / adjustedSubtotal) * 100;
 
+      const freightEngine = window.UniversalCPQ?.registry?.getEngine('freight');
+      const freightEvaluation = freightEngine && typeof freightEngine.evaluate === 'function'
+        ? freightEngine.evaluate({
+            freightRules: appState.data.freightRules,
+            items,
+            totals: { productSubtotal, componentSubtotal, subtotal: adjustedSubtotal },
+            brand: appState.brand,
+            dealer: appState.dealer,
+            application: appState.application,
+            deliveryMethod: clean(appState.deliveryMethod),
+            specialOrder: Boolean(appState.specialOrder)
+          })
+        : { status:'NOT_CONFIGURED', messages:['Freight Engine is unavailable.'], evaluated:[], applied:[], rejected:[], adjustments:[], charge:0 };
+      const freightCharge = Math.max(0, money(freightEvaluation.charge));
+      const totalAfterFreight = adjustedSubtotal + freightCharge;
+
       const pricingMs = performance.now() - pricingStarted;
       const rules = runUniversalRules(items, {
         listSubtotal,
@@ -869,8 +907,10 @@
         discountAmount: discountAmount + promotionSavings,
         grossProfit: adjustedGrossProfit,
         grossMarginPercent: adjustedGrossMarginPercent,
-        subtotal: adjustedSubtotal
-      }, promotionEvaluation);
+        subtotal: totalAfterFreight,
+        preFreightSubtotal: adjustedSubtotal,
+        freight: freightCharge
+      }, promotionEvaluation, freightEvaluation);
 
       appState.configuration = {
         schemaVersion: '1.3',
@@ -887,17 +927,18 @@
           trace
         },
         promotions: promotionEvaluation,
+        freight: freightEvaluation,
         rules,
         totals: {
           productSubtotal,
           componentSubtotal,
           subtotal: adjustedSubtotal,
           prePromotionSubtotal: subtotal,
-          freight: 0,
+          freight: freightCharge,
           promotions: promotionSavings,
           dealerPromotionFunding: money(promotionEvaluation.dealerFunding),
           tax: 0,
-          total: adjustedSubtotal,
+          total: totalAfterFreight,
           listSubtotal,
           dealerCostSubtotal,
           discountAmount: discountAmount + promotionSavings,
@@ -2207,7 +2248,8 @@
           compatibility: appState.data.compatibility.length,
           relationships: appState.data.relationships.length,
           dealerRules: appState.data.dealerRules.length,
-          promotions: appState.data.promotions.length
+          promotions: appState.data.promotions.length,
+          freightRules: appState.data.freightRules.length
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2260,6 +2302,7 @@
       byId('diagnostic-rules').textContent = ruleLines.join('\n');
       byId('diagnostic-dealer-rules').textContent = JSON.stringify({ loadedRules: appState.data.dealerRules, evaluation: (appState.configuration?.rules?.stages || []).find(stage => stage.stage === 'Dealer Rules')?.details || null }, null, 2);
       byId('diagnostic-promotions').textContent = JSON.stringify({ loadedPromotions: appState.data.promotions, evaluation: appState.configuration?.promotions || null }, null, 2);
+      byId('diagnostic-freight').textContent = JSON.stringify({ loadedFreightRules: appState.data.freightRules, evaluation: appState.configuration?.freight || null }, null, 2);
 
       const performanceLines = [];
       const performanceData = appState.configuration?.performance;
@@ -2281,7 +2324,10 @@
         performanceLines.push(`Total CPQ Time: ${performanceData.totalMs.toFixed(3)} ms`);
         performanceLines.push('');
         performanceLines.push(`Rules Executed: ${ruleStatistics?.rulesExecuted || 0}`);
-        performanceLines.push(`Rules Passed: ${ruleStatistics?.rulesPassed || 0}`);
+        performanceLines.push(`Rules Passed/Applied: ${ruleStatistics?.rulesPassed || 0}`);
+        performanceLines.push(`Not Configured: ${ruleStatistics?.rulesNotConfigured || 0}`);
+        performanceLines.push(`Skipped: ${ruleStatistics?.rulesSkipped || 0}`);
+        performanceLines.push(`Failed/Blocked: ${ruleStatistics?.rulesFailed || 0}`);
         performanceLines.push(`Warnings: ${ruleStatistics?.warnings || 0}`);
         performanceLines.push(`Errors: ${ruleStatistics?.errors || 0}`);
         performanceLines.push('');
@@ -2292,12 +2338,19 @@
         performanceLines.push('');
         const history = appState.developer.performanceHistory || [];
         if (history.length) {
-          const average = history.reduce((sum, run) => sum + run.totalMs, 0) / history.length;
+          const values = history.map(run => Number(run.totalMs || 0)).sort((a,b) => a-b);
+          const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+          const median = values.length % 2
+            ? values[Math.floor(values.length / 2)]
+            : (values[values.length / 2 - 1] + values[values.length / 2]) / 2;
           performanceLines.push(`Last ${history.length} Runs:`);
           history.forEach((run, index) => {
             performanceLines.push(`Run ${index + 1}: ${run.totalMs.toFixed(3)} ms`);
           });
           performanceLines.push(`Average: ${average.toFixed(3)} ms`);
+          performanceLines.push(`Fastest: ${values[0].toFixed(3)} ms`);
+          performanceLines.push(`Slowest: ${values[values.length - 1].toFixed(3)} ms`);
+          performanceLines.push(`Median: ${median.toFixed(3)} ms`);
         }
       }
       byId('diagnostic-performance').textContent = performanceLines.join('\n');
@@ -2319,6 +2372,36 @@
         null,
         2
       );
+    }
+
+    function buildHealthReport() {
+      const configuration = appState.configuration;
+      const stages = configuration?.rules?.stages || [];
+      const stageStatus = name => stages.find(stage => stage.stage === name)?.status || 'NOT_RUN';
+      const totals = configuration?.totals || {};
+      const expectedTotal = money(totals.subtotal) + money(totals.freight) + money(totals.tax);
+      const pricingPass = Math.abs(expectedTotal - money(totals.total)) < 0.01;
+      const errors = configuration?.rules?.errors?.length || 0;
+      const startupErrors = appState.startupErrors.length;
+      const categories = {
+        configuration: configuration ? 'PASS' : 'NOT_RUN',
+        pricing: pricingPass ? 'PASS' : 'FAIL',
+        relationships: appState.data.relationships.length ? 'PASS' : 'NOT_CONFIGURED',
+        compatibility: stageStatus('Compatibility'),
+        promotions: stageStatus('Promotions'),
+        freight: stageStatus('Freight'),
+        dealerRules: stageStatus('Dealer Rules'),
+        finance: stageStatus('Finance'),
+        startup: startupErrors ? 'FAIL' : 'PASS'
+      };
+      const failing = Object.values(categories).filter(status => ['FAIL','BLOCKED'].includes(status)).length;
+      const score = Math.max(0, 100 - failing * 20 - errors * 10 - startupErrors * 20);
+      return {
+        score,
+        status: failing || errors || startupErrors ? 'FAIL' : 'PASS',
+        readyForCommit: !(failing || errors || startupErrors),
+        categories
+      };
     }
 
     function buildDiagnosticSnapshot() {
@@ -2360,6 +2443,8 @@
         configuration: appState.configuration,
         calculationTrace: pricingTrace,
         promotions: appState.configuration?.promotions || null,
+        freight: appState.configuration?.freight || null,
+        health: buildHealthReport(),
         ruleTrace: rules,
         performance: {
           current: performance,
@@ -2378,7 +2463,8 @@
           unifiedComponents: allComponents().length,
           configuredItems: appState.configuration?.items?.length || 0,
           dealerRuleRows: appState.data.dealerRules.length,
-          promotionRows: appState.data.promotions.length
+          promotionRows: appState.data.promotions.length,
+          freightRuleRows: appState.data.freightRules.length
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2846,6 +2932,18 @@
     }
 
 
+
+    async function loadFreightRules() {
+      const path = clean(appState.application?.freightRulesDataPath) || 'data/freight-rules.csv';
+      try {
+        const rows = await loadDataFile('freightRules', path);
+        console.log(`Loaded ${rows.length} freight rule row(s): ${path}`);
+      } catch (error) {
+        appState.data.freightRules = [];
+        console.info(`Freight rules not configured: ${path}`);
+      }
+    }
+
     async function loadPromotions() {
       const path = clean(appState.application?.promotionsDataPath) || 'data/promotions.csv';
       try {
@@ -3012,6 +3110,7 @@
         await loadBatteries();
         await loadChargers();
         await loadRelationships();
+        await loadFreightRules();
         await loadPromotions();
         await loadDealerRules();
         await loadProducts();
