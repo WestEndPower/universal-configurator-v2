@@ -800,6 +800,92 @@
     .inspector-pane { display:none; }
     .inspector-pane.active { display:block; }
 
+    .dealer-panel {
+  margin-top: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.dealer-panel-summary {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.dealer-panel-summary::-webkit-details-marker {
+  display: none;
+}
+
+.dealer-panel-arrow {
+  font-size: 18px;
+  font-weight: 900;
+  transition: transform .15s ease;
+}
+
+.dealer-panel[open] .dealer-panel-arrow {
+  transform: rotate(90deg);
+}
+
+.dealer-panel-title {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.dealer-panel-subtitle {
+  margin-top: 3px;
+  color: var(--muted-text);
+  font-size: 12px;
+}
+
+.dealer-panel-summary-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dealer-panel-amount {
+  font-size: 18px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.dealer-panel-badge {
+  display: inline-block;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #7a5600;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.dealer-panel-content {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+  background: #fafafa;
+}
+
+@media (max-width: 700px) {
+  .dealer-panel-summary {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .dealer-panel-summary-right {
+    grid-column: 2;
+    justify-content: space-between;
+  }
+}
+
     .freight-mode-buttons {
   display: flex;
   gap: 10px;
@@ -1259,132 +1345,172 @@
         <strong id="configuration-total">$0.00</strong>
       </div>
 
-      <div class="quote-builder" id="freight-manager">
-  <h3 style="margin:0 0 14px;">
-    Freight Manager
-  </h3>
-
-  <div class="freight-mode-buttons">
-    <button
-      class="button freight-mode-button active"
-      id="freight-use-calculated"
-      type="button"
-      data-freight-mode="calculated"
-    >
-      Use Calculated Freight
-    </button>
-
-    <button
-      class="button freight-mode-button"
-      id="freight-use-manual"
-      type="button"
-      data-freight-mode="manual"
-    >
-      Manual Override
-    </button>
-  </div>
-
-  <input
-    id="freight-mode"
-    type="hidden"
-    value="calculated"
-  >
-
-  <div class="freight-flow">
-    <div class="freight-flow-step">
-      <div class="freight-flow-label">
-        Calculated Freight
-      </div>
-
-      <div
-        class="freight-flow-value"
-        id="freight-calculated-display"
-      >
-        $0.00
-      </div>
-    </div>
-
-    <div class="freight-flow-arrow">
-      ↓
-    </div>
-
-    <div
-      class="freight-flow-step freight-override-step"
-      id="freight-override-step"
-      hidden
-    >
-      <div class="freight-flow-label">
-        Manual Override
-      </div>
-
-      <div
-  id="freight-adjustment-value"
-  class="freight-flow-value"
+      <details
+  class="dealer-panel"
+  id="freight-manager"
 >
-  +$0.00
-</div>
+  <summary class="dealer-panel-summary">
+    <span
+      class="dealer-panel-arrow"
+      aria-hidden="true"
+    >
+      ▶
+    </span>
 
-      <div class="freight-override-grid">
-        <div>
-          <label for="freight-manual-amount">
-            Override Amount
-          </label>
+    <span>
+      <span class="dealer-panel-title">
+        Freight
+      </span>
 
-          <input
-            id="freight-manual-amount"
-            type="number"
-            min="0"
-            step="0.01"
-            value="0.00"
-          >
+      <span
+        class="dealer-panel-subtitle"
+        id="freight-panel-subtitle"
+      >
+        Calculated freight
+      </span>
+    </span>
+
+    <span class="dealer-panel-summary-right">
+      <span
+        class="dealer-panel-badge"
+        id="freight-panel-badge"
+        hidden
+      >
+        Adjusted
+      </span>
+
+      <span
+        class="dealer-panel-amount"
+        id="freight-panel-amount"
+      >
+        $0.00
+      </span>
+    </span>
+  </summary>
+
+  <div class="dealer-panel-content">
+    <div class="freight-mode-buttons">
+      <button
+        class="button freight-mode-button active"
+        id="freight-use-calculated"
+        type="button"
+        data-freight-mode="calculated"
+      >
+        Use Calculated Freight
+      </button>
+
+      <button
+        class="button freight-mode-button"
+        id="freight-use-manual"
+        type="button"
+        data-freight-mode="manual"
+      >
+        Freight Adjustment
+      </button>
+    </div>
+
+    <input
+      id="freight-mode"
+      type="hidden"
+      value="calculated"
+    >
+
+    <div class="freight-flow">
+      <div class="freight-flow-step">
+        <div class="freight-flow-label">
+          Calculated Freight
         </div>
 
-        <div>
-          <label for="freight-override-reason">
-            Override Reason
-          </label>
-
-          <input
-            id="freight-override-reason"
-            type="text"
-            placeholder="Example: Quoted factory freight"
-          >
+        <div
+          class="freight-flow-value"
+          id="freight-calculated-display"
+        >
+          $0.00
         </div>
       </div>
-    </div>
 
-    <div
-      class="freight-flow-arrow"
-      id="freight-override-arrow"
-      hidden
-    >
-      ↓
-    </div>
-
-    <div class="freight-flow-step freight-applied-step">
-      <div class="freight-flow-label">
-        Applied to Quote
+      <div class="freight-flow-arrow">
+        ↓
       </div>
 
       <div
-        class="freight-flow-value"
-        id="freight-applied-display"
+        class="freight-flow-step freight-override-step"
+        id="freight-override-step"
+        hidden
       >
-        $0.00
+        <div class="freight-flow-label">
+          Freight Adjustment
+        </div>
+
+        <div
+          id="freight-adjustment-value"
+          class="freight-flow-value"
+        >
+          +$0.00
+        </div>
+
+        <div class="freight-override-grid">
+          <div>
+            <label for="freight-manual-amount">
+              Applied Freight Amount
+            </label>
+
+            <input
+              id="freight-manual-amount"
+              type="number"
+              min="0"
+              step="0.01"
+              value="0.00"
+            >
+          </div>
+
+          <div>
+            <label for="freight-override-reason">
+              Adjustment Reason
+            </label>
+
+            <input
+              id="freight-override-reason"
+              type="text"
+              placeholder="Example: Factory quoted freight"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="freight-flow-arrow"
+        id="freight-override-arrow"
+        hidden
+      >
+        ↓
+      </div>
+
+      <div class="freight-flow-step freight-applied-step">
+        <div class="freight-flow-label">
+          Applied to Quote
+        </div>
+
+        <div
+          class="freight-flow-value"
+          id="freight-applied-display"
+        >
+          $0.00
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="quote-actions">
-    <button
-      class="button"
-      id="reset-freight"
-      type="button"
-    >
-      Reset to Calculated Freight
-    </button>
+    <div class="quote-actions">
+      <button
+        class="button"
+        id="reset-freight"
+        type="button"
+      >
+        Reset to Calculated Freight
+      </button>
+    </div>
   </div>
-</div>
+</details>
   
       <div class="quote-builder">
         <h3 style="margin:0 0 12px;">Customer Quote</h3>

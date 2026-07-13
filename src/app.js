@@ -1530,6 +1530,15 @@ netMarginPercent:
   const reasonControl =
     byId('freight-override-reason');
 
+    const panelAmount =
+  byId('freight-panel-amount');
+
+const panelSubtitle =
+  byId('freight-panel-subtitle');
+
+const panelBadge =
+  byId('freight-panel-badge');
+
   if (
     !calculatedDisplay ||
     !appliedDisplay ||
@@ -1628,6 +1637,22 @@ if (adjustmentLabel) {
 
 appliedDisplay.textContent =
   formatMoney(appliedCharge);
+  if (panelAmount) {
+  panelAmount.textContent =
+    formatMoney(appliedCharge);
+}
+
+if (panelSubtitle) {
+  panelSubtitle.textContent =
+    manualMode
+      ? 'Manual freight adjustment applied'
+      : 'Calculated freight';
+}
+
+if (panelBadge) {
+  panelBadge.hidden =
+    !manualMode;
+}
 }
 
     function renderCurrentConfiguration() {
@@ -3545,6 +3570,13 @@ if (manualFreightButton) {
     'click',
     () => {
       setFreightMode('manual');
+
+      const freightPanel =
+        byId('freight-manager');
+
+      if (freightPanel) {
+        freightPanel.open = true;
+      }
     }
   );
 }
