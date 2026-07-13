@@ -1,0 +1,3 @@
+LocationID,DealerID,LocationName,Address,City,State,ZIP,Phone,Email,PickupAvailable,DeliveryAvailable,TaxRate,Active
+NM,WEST-END,New Milford,265 Danbury Road,New Milford,CT,06776,860-354-9346,nmwepe@westendpower.com,T,T,6.35,T
+DANBURY,WEST-END,Danbury,,,,,,,T,T,6.35,T

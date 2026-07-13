@@ -1,6 +1,1 @@
-Universal Configurator V3.6.0 Update
-
-Copy the contents of this folder over V3.5.4 and replace included platform files.
-Do not replace dealer-specific settings or live data files.
-
-New: save, reopen, update, and delete quotes stored locally in this browser.
+Universal Configurator V3.7.0 update. Adds dealer identity, locally protected settings, optional locations, salespeople, quote prefixes, default terms, validity days, and branding overrides. Copy included platform files over V3.6.0. Do not replace live dealer data files.

@@ -1,0 +1,19 @@
+{
+  "dealerId": "WEST-END",
+  "dealerName": "West End Power Equipment",
+  "legalName": "West End Power Equipment Company, Inc.",
+  "address": "265 Danbury Road",
+  "city": "New Milford",
+  "state": "CT",
+  "zip": "06776",
+  "phone": "860-354-9346",
+  "email": "nmwepe@westendpower.com",
+  "website": "westendpower.com",
+  "quotePrefix": "WEP",
+  "defaultQuoteValidDays": 14,
+  "defaultTaxRate": 6.35,
+  "primaryColor": "#C62828",
+  "secondaryColor": "#111111",
+  "accentColor": "#FCE8E8",
+  "defaultTerms": "Pricing and availability are subject to change until the order is accepted."
+}

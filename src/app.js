@@ -22,7 +22,9 @@
         dealerRules: [],
         promotions: [],
         freightRules: [],
-        financePrograms: []
+        financePrograms: [],
+        locations: [],
+        salespeople: []
       },
       filters: {
         keyword: '',
@@ -56,7 +58,8 @@
         preparedBy: '',
         validThrough: '',
         terms: '',
-        quoteNumber: ''
+        quoteNumber: '',
+        locationId: ''
       },
       developer: {
         panelOpen: false,
@@ -322,7 +325,7 @@
 
     function renderApplicationIdentity() {
       const application = appState.application || {};
-      const dealer = appState.dealer || {};
+      const dealer = effectiveDealer();
       const brand = appState.brand || {};
 
       const applicationName =
@@ -427,6 +430,31 @@
       }
 
       return [];
+    }
+
+
+    function dealerSettingsEngine() {
+      return window.UniversalCPQ?.registry?.getEngine('dealer-settings');
+    }
+
+    function effectiveDealer() {
+      const engine = dealerSettingsEngine();
+      return engine?.merge?.(appState.dealer || {}, engine.load?.()) || (appState.dealer || {});
+    }
+
+    function applyDealerOverrides() {
+      appState.dealer = effectiveDealer();
+      const dealer = appState.dealer || {};
+      if (clean(dealer.primaryColor)) document.documentElement.style.setProperty('--brand-primary', clean(dealer.primaryColor));
+      if (clean(dealer.secondaryColor)) document.documentElement.style.setProperty('--brand-secondary', clean(dealer.secondaryColor));
+      if (clean(dealer.accentColor)) document.documentElement.style.setProperty('--brand-accent', clean(dealer.accentColor));
+    }
+
+    function defaultQuoteValidThrough() {
+      const days = Math.max(0, Number(effectiveDealer().defaultQuoteValidDays || 14));
+      const date = new Date();
+      date.setDate(date.getDate() + days);
+      return date.toISOString().slice(0,10);
     }
 
     function activeProducts() {
@@ -2346,6 +2374,7 @@
       byId('diagnostic-promotions').textContent = JSON.stringify({ loadedPromotions: appState.data.promotions, evaluation: appState.configuration?.promotions || null }, null, 2);
       byId('diagnostic-freight').textContent = JSON.stringify({ loadedFreightRules: appState.data.freightRules, evaluation: appState.configuration?.freight || null }, null, 2);
       byId('diagnostic-finance').textContent = JSON.stringify({ loadedFinancePrograms: appState.data.financePrograms, evaluation: appState.configuration?.finance || null }, null, 2);
+      byId('diagnostic-dealer-settings').textContent = JSON.stringify({ effectiveDealer: effectiveDealer(), localOverrides: dealerSettingsEngine()?.load?.() || null, locations: appState.data.locations, salespeople: appState.data.salespeople }, null, 2);
       byId('diagnostic-documents').textContent = JSON.stringify({ engine: window.UniversalCPQ?.registry?.getEngine('documents')?.name || 'Unavailable', currentQuote: appState.configuration?.items?.length ? buildCurrentQuote() : null, savedQuotes: savedQuoteEngine()?.listQuotes?.() || [] }, null, 2);
 
       const performanceLines = [];
@@ -2490,6 +2519,9 @@
         freight: appState.configuration?.freight || null,
         finance: appState.configuration?.finance || null,
         quote: appState.configuration?.items?.length ? buildCurrentQuote() : null,
+        dealerSettings: effectiveDealer(),
+        locations: appState.data.locations,
+        salespeople: appState.data.salespeople,
         health: buildHealthReport(),
         ruleTrace: rules,
         performance: {
@@ -2512,7 +2544,9 @@
           promotionRows: appState.data.promotions.length,
           freightRuleRows: appState.data.freightRules.length,
           financeProgramRows: appState.data.financePrograms.length,
-          savedQuoteCount: savedQuoteEngine()?.listQuotes?.().length || 0
+          savedQuoteCount: savedQuoteEngine()?.listQuotes?.().length || 0,
+          locationRows: appState.data.locations.length,
+          salespersonRows: appState.data.salespeople.length
         },
         startupErrors: [...appState.startupErrors]
       };
@@ -2578,7 +2612,8 @@
         preparedBy: field('quote-prepared-by'),
         validThrough: field('quote-valid-through'),
         terms: field('quote-terms'),
-        quoteNumber: existingQuoteNumber
+        quoteNumber: existingQuoteNumber,
+        locationId: field('quote-location')
       };
       return appState.quote;
     }
@@ -2594,8 +2629,8 @@
         customer: form.customer,
         preparedBy: form.preparedBy,
         validThrough: form.validThrough,
-        terms: form.terms,
-        dealer: appState.dealer,
+        terms: form.terms || effectiveDealer().defaultTerms,
+        dealer: effectiveDealer(),
         brand: appState.brand,
         application: appState.application,
         quoteNumber: appState.quote.quoteNumber
@@ -2607,6 +2642,7 @@
       const customer = quote.customer || {};
       const set = (id, value) => { const element = byId(id); if (element) element.value = clean(value); };
       set('quote-prepared-by', quote.preparedBy);
+      set('quote-location', quote.locationId || appState.quote.locationId);
       set('quote-valid-through', quote.validThrough);
       set('quote-customer-name', customer.name);
       set('quote-business-name', customer.business);
@@ -2713,7 +2749,7 @@
 
     function newQuote() {
       appState.cart = {};
-      appState.quote = { customer:{}, preparedBy:'', validThrough:'', terms:'', quoteNumber:'' };
+      appState.quote = { customer:{}, preparedBy:'', validThrough:defaultQuoteValidThrough(), terms:effectiveDealer().defaultTerms, quoteNumber:'', locationId:effectiveDealer().defaultLocationId };
       writeQuoteForm({});
       calculateConfiguration();
       showProductSearch();
@@ -2959,6 +2995,25 @@
       byId('preview-quote').addEventListener('click', previewQuote);
       byId('save-quote').addEventListener('click', saveCurrentQuote);
       byId('new-quote').addEventListener('click', newQuote);
+      const dealerSettingsToggle = byId('toggle-dealer-settings');
+      const dealerSettingsCard = byId('dealer-settings-card');
+      const saveDealerSettingsButton = byId('save-dealer-settings');
+      const resetDealerSettingsButton = byId('reset-dealer-settings');
+
+      if (dealerSettingsToggle && dealerSettingsCard) {
+        dealerSettingsToggle.addEventListener('click', () => {
+          dealerSettingsCard.hidden = !dealerSettingsCard.hidden;
+          if (!dealerSettingsCard.hidden) writeDealerSettingsForm();
+        });
+      }
+
+      if (saveDealerSettingsButton) {
+        saveDealerSettingsButton.addEventListener('click', saveDealerSettings);
+      }
+
+      if (resetDealerSettingsButton) {
+        resetDealerSettingsButton.addEventListener('click', resetDealerSettings);
+      }
       byId('saved-quotes-list').addEventListener('click', event => {
         const openButton = event.target.closest('.reopen-saved-quote');
         if (openButton) { restoreSavedQuote(openButton.dataset.quoteNumber); return; }
@@ -3258,6 +3313,85 @@
       }
     }
 
+
+    async function loadLocations() {
+      const path = clean(appState.application?.locationsDataPath) || 'data/locations.csv';
+      try {
+        appState.data.locations = await loadDataFile('locations', path);
+      } catch (error) {
+        appState.data.locations = [];
+        console.info(`Optional locations data not loaded: ${path}`);
+      }
+    }
+
+    async function loadSalespeople() {
+      const path = clean(appState.application?.salespeopleDataPath) || 'data/salespeople.csv';
+      try {
+        appState.data.salespeople = await loadDataFile('salespeople', path);
+      } catch (error) {
+        appState.data.salespeople = [];
+        console.info(`Optional salespeople data not loaded: ${path}`);
+      }
+    }
+
+    function populateDealerSelections() {
+      const dealer = effectiveDealer();
+      const salesperson = byId('quote-prepared-by');
+      if (salesperson) {
+        const current = clean(salesperson.value);
+        salesperson.innerHTML = '<option value="">Select Salesperson</option>' + appState.data.salespeople
+          .filter(row => !clean(row.Active) || isTrue(row.Active))
+          .sort((a,b) => Number(a.SortOrder||0)-Number(b.SortOrder||0))
+          .map(row => `<option value="${escapeHtml(row.Name)}">${escapeHtml(row.Name)}</option>`).join('');
+        if (current) salesperson.value = current;
+      }
+      const location = byId('quote-location');
+      if (location) {
+        const current = clean(location.value || appState.quote.locationId || dealer.defaultLocationId);
+        location.innerHTML = '<option value="">Default Location</option>' + appState.data.locations
+          .filter(row => !clean(row.Active) || isTrue(row.Active))
+          .map(row => `<option value="${escapeHtml(row.LocationID)}">${escapeHtml(row.LocationName)}</option>`).join('');
+        if (current) location.value = current;
+      }
+    }
+
+    function writeDealerSettingsForm() {
+      const dealer = effectiveDealer();
+      const set = (id, value) => { const element = byId(id); if (element) element.value = clean(value); };
+      set('dealer-name', dealer.dealerName); set('dealer-legal-name', dealer.legalName); set('dealer-address', dealer.address);
+      set('dealer-city', dealer.city); set('dealer-state', dealer.state); set('dealer-zip', dealer.zip); set('dealer-phone', dealer.phone);
+      set('dealer-email', dealer.email); set('dealer-website', dealer.website); set('dealer-logo-url', dealer.logoUrl);
+      set('dealer-primary-color', dealer.primaryColor); set('dealer-secondary-color', dealer.secondaryColor); set('dealer-accent-color', dealer.accentColor);
+      set('dealer-quote-prefix', dealer.quotePrefix); set('dealer-valid-days', dealer.defaultQuoteValidDays); set('dealer-tax-rate', dealer.defaultTaxRate);
+      set('dealer-default-terms', dealer.defaultTerms); set('dealer-default-location', dealer.defaultLocationId);
+    }
+
+    function readDealerSettingsForm() {
+      const value = id => clean(byId(id)?.value);
+      return {
+        ...effectiveDealer(), dealerName:value('dealer-name'), legalName:value('dealer-legal-name'), address:value('dealer-address'),
+        city:value('dealer-city'), state:value('dealer-state'), zip:value('dealer-zip'), phone:value('dealer-phone'), email:value('dealer-email'),
+        website:value('dealer-website'), logoUrl:value('dealer-logo-url'), primaryColor:value('dealer-primary-color'), secondaryColor:value('dealer-secondary-color'),
+        accentColor:value('dealer-accent-color'), quotePrefix:value('dealer-quote-prefix') || 'QUOTE',
+        defaultQuoteValidDays:Number(value('dealer-valid-days') || 14), defaultTaxRate:Number(value('dealer-tax-rate') || 0),
+        defaultTerms:value('dealer-default-terms'), defaultLocationId:value('dealer-default-location')
+      };
+    }
+
+    function saveDealerSettings() {
+      const engine = dealerSettingsEngine();
+      appState.dealer = engine.save(readDealerSettingsForm());
+      applyDealerOverrides(); renderApplicationIdentity(); populateDealerSelections();
+      window.alert('Dealer settings saved locally. Future platform updates will not overwrite them.');
+      renderDeveloperDiagnostics();
+    }
+
+    function resetDealerSettings() {
+      if (!window.confirm('Remove local dealer overrides and return to the original dealer configuration?')) return;
+      dealerSettingsEngine()?.clear?.();
+      window.location.reload();
+    }
+
     function validateConfiguration() {
       const errors = [];
 
@@ -3349,6 +3483,7 @@
       ]);
 
       applyBrandTheme();
+      applyDealerOverrides();
       renderApplicationIdentity();
 
       if (appState.brand) {
@@ -3361,9 +3496,17 @@
         await loadFinancePrograms();
         await loadPromotions();
         await loadDealerRules();
+        await loadLocations();
+        await loadSalespeople();
         await loadProducts();
       }
 
+      applyDealerOverrides();
+      renderApplicationIdentity();
+      populateDealerSelections();
+      writeDealerSettingsForm();
+      if (!clean(byId('quote-valid-through')?.value)) byId('quote-valid-through').value = defaultQuoteValidThrough();
+      if (!clean(byId('quote-terms')?.value)) byId('quote-terms').value = effectiveDealer().defaultTerms || '';
       renderStartupResult();
       renderSavedQuotes();
       renderDeveloperDiagnostics();

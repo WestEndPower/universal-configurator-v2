@@ -42,7 +42,7 @@
 
     return {
       schemaVersion: '1.0',
-      quoteNumber: text(context.quoteNumber) || quoteNumber(application.quotePrefix || brand.quotePrefix || 'QUOTE'),
+      quoteNumber: text(context.quoteNumber) || quoteNumber(dealer.quotePrefix || dealer.QuotePrefix || application.quotePrefix || brand.quotePrefix || 'QUOTE'),
       createdAt,
       status: 'DRAFT',
       application: { name:text(application.name), version:text(application.version), currency:text(application.currency || 'USD'), locale:text(application.locale || 'en-US') },
@@ -66,7 +66,7 @@
   }
 
   platform.registry.registerEngine('documents', {
-    name:'Universal Quote & Document Engine', version:'1.1.0', configured:true,
+    name:'Universal Quote & Document Engine', version:'1.2.0', configured:true,
     buildQuote,
     saveQuoteSession(quote, key='universal-cpq-current-quote') {
       const payload = JSON.stringify(quote);

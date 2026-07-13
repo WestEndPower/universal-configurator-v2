@@ -845,12 +845,16 @@
         </div>
 
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="button" id="toggle-dealer-settings" type="button">
+            Dealer Settings
+          </button>
+
           <button class="button" id="toggle-developer-panel" type="button">
             CPQ Inspector
           </button>
 
           <div class="version-badge" id="version-badge">
-            Version 3.6.0
+            Version 3.7.1
           </div>
         </div>
       </div>
@@ -914,7 +918,7 @@
       <div class="error-panel" id="error-panel"></div>
 
       <div class="app-ready-panel" id="app-ready-panel">
-        Version 3.0.0 modular CPQ architecture loaded successfully.
+        Version 3.7.0 dealer identity and settings loaded successfully.
       </div>
     </section>
 
@@ -957,6 +961,7 @@
         <button class="inspector-tab" data-pane="freight" type="button">Freight</button>
         <button class="inspector-tab" data-pane="finance" type="button">Finance</button>
         <button class="inspector-tab" data-pane="documents" type="button">Documents</button>
+        <button class="inspector-tab" data-pane="dealer-settings" type="button">Dealer Settings</button>
         <button class="inspector-tab" data-pane="dealer-rules" type="button">Dealer Rules</button>
         <button class="inspector-tab" data-pane="relationships" type="button">Relationships</button>
         <button class="inspector-tab" data-pane="data" type="button">Data Loaded</button>
@@ -995,6 +1000,10 @@
         <pre class="diagnostic-json" id="diagnostic-documents">No document generated.</pre>
       </div>
 
+      <div class="inspector-pane" data-pane-content="dealer-settings">
+        <pre class="diagnostic-json" id="diagnostic-dealer-settings">No dealer settings loaded.</pre>
+      </div>
+
       <div class="inspector-pane" data-pane-content="dealer-rules">
         <pre class="diagnostic-json" id="diagnostic-dealer-rules">No dealer rules evaluated.</pre>
       </div>
@@ -1018,6 +1027,33 @@
         <h3 style="margin:0 0 8px;">Debug Log</h3>
         <pre class="diagnostic-json" id="diagnostic-json">Diagnostics will appear after startup.</pre>
       </div>
+    </section>
+
+
+    <section class="card" id="dealer-settings-card" hidden>
+      <div class="configuration-header"><h2 class="configuration-heading">Dealer Identity & Settings</h2><button class="button" type="button" onclick="document.getElementById('dealer-settings-card').hidden=true">Close</button></div>
+      <p class="developer-note">Saved locally in this browser. Platform updates do not overwrite these settings.</p>
+      <div class="quote-form-grid">
+        <div><label for="dealer-name">Dealer Name</label><input id="dealer-name" type="text"></div>
+        <div><label for="dealer-legal-name">Legal Name</label><input id="dealer-legal-name" type="text"></div>
+        <div class="span-2"><label for="dealer-address">Address</label><input id="dealer-address" type="text"></div>
+        <div><label for="dealer-city">City</label><input id="dealer-city" type="text"></div>
+        <div><label for="dealer-state">State</label><input id="dealer-state" type="text"></div>
+        <div><label for="dealer-zip">ZIP</label><input id="dealer-zip" type="text"></div>
+        <div><label for="dealer-phone">Phone</label><input id="dealer-phone" type="text"></div>
+        <div><label for="dealer-email">Email</label><input id="dealer-email" type="email"></div>
+        <div><label for="dealer-website">Website</label><input id="dealer-website" type="text"></div>
+        <div class="span-2"><label for="dealer-logo-url">Logo URL / Path</label><input id="dealer-logo-url" type="text"></div>
+        <div><label for="dealer-primary-color">Primary Color</label><input id="dealer-primary-color" type="text" placeholder="#C62828"></div>
+        <div><label for="dealer-secondary-color">Secondary Color</label><input id="dealer-secondary-color" type="text" placeholder="#111111"></div>
+        <div><label for="dealer-accent-color">Accent Color</label><input id="dealer-accent-color" type="text" placeholder="#FCE8E8"></div>
+        <div><label for="dealer-quote-prefix">Quote Prefix</label><input id="dealer-quote-prefix" type="text" placeholder="WEP"></div>
+        <div><label for="dealer-valid-days">Default Quote Valid Days</label><input id="dealer-valid-days" type="number" min="0"></div>
+        <div><label for="dealer-tax-rate">Default Tax Rate</label><input id="dealer-tax-rate" type="number" step="0.01" min="0"></div>
+        <div><label for="dealer-default-location">Default Location ID</label><input id="dealer-default-location" type="text"></div>
+        <div class="span-4"><label for="dealer-default-terms">Default Quote Terms</label><textarea id="dealer-default-terms"></textarea></div>
+      </div>
+      <div class="quote-actions"><button class="button primary" id="save-dealer-settings" type="button">Save Dealer Settings</button><button class="button" id="reset-dealer-settings" type="button">Reset Local Overrides</button></div>
     </section>
 
     <section class="card" id="product-search-card" hidden>
@@ -1146,8 +1182,9 @@
       <div class="quote-builder">
         <h3 style="margin:0 0 12px;">Customer Quote</h3>
         <div class="quote-form-grid">
-          <div><label for="quote-prepared-by">Prepared By</label><input id="quote-prepared-by" type="text" placeholder="Salesperson"></div>
+          <div><label for="quote-prepared-by">Prepared By</label><select id="quote-prepared-by"><option value="">Select Salesperson</option></select></div>
           <div><label for="quote-valid-through">Valid Through</label><input id="quote-valid-through" type="date"></div>
+          <div><label for="quote-location">Location</label><select id="quote-location"><option value="">Default Location</option></select></div>
           <div><label for="quote-customer-name">Customer</label><input id="quote-customer-name" type="text" placeholder="Customer name"></div>
           <div><label for="quote-business-name">Business</label><input id="quote-business-name" type="text" placeholder="Business name"></div>
           <div><label for="quote-phone">Phone</label><input id="quote-phone" type="tel" placeholder="Phone"></div>
@@ -1300,6 +1337,7 @@
   <script src="src/business/financing.js"></script>
   <script src="src/business/tax.js"></script>
   <script src="src/business/documents.js"></script>
+  <script src="src/business/dealer-settings.js"></script>
   <script src="src/app.js"></script>
   <script src="src/core/adapters.js"></script>
 </body>
