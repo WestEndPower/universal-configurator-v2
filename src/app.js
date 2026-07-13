@@ -1514,6 +1514,164 @@ netMarginPercent:
       `;
     }
 
+    function renderPromotionsManager() {
+  const evaluation =
+    appState.configuration?.promotions || {};
+
+  const appliedPromotions =
+    Array.isArray(evaluation.applied)
+      ? evaluation.applied
+      : [];
+
+  const customerSavings =
+    Math.max(
+      0,
+      money(evaluation.customerSavings)
+    );
+
+  const dealerFunding =
+    Math.max(
+      0,
+      money(evaluation.dealerFunding)
+    );
+
+  const panelAmount =
+    byId('promotions-panel-amount');
+
+  const panelSubtitle =
+    byId('promotions-panel-subtitle');
+
+  const panelBadge =
+    byId('promotions-panel-badge');
+
+  const emptyState =
+    byId('promotions-empty-state');
+
+  const appliedList =
+    byId('promotions-applied-list');
+
+  const totalsPanel =
+    byId('promotion-totals');
+
+  const customerSavingsTotal =
+    byId('promotion-customer-savings-total');
+
+  const dealerFundingTotal =
+    byId('promotion-dealer-funding-total');
+
+  const dealerFundingRow =
+    document.querySelector(
+      '.promotion-dealer-funding-row'
+    );
+
+  if (
+    !panelAmount ||
+    !panelSubtitle ||
+    !appliedList
+  ) {
+    return;
+  }
+
+  panelAmount.textContent =
+    customerSavings > 0
+      ? `-${formatMoney(customerSavings)}`
+      : formatMoney(0);
+
+  panelSubtitle.textContent =
+    appliedPromotions.length
+      ? `${appliedPromotions.length} promotion${
+          appliedPromotions.length === 1
+            ? ''
+            : 's'
+        } applied`
+      : 'No active promotions';
+
+  if (panelBadge) {
+    panelBadge.hidden =
+      !appliedPromotions.length;
+  }
+
+  if (emptyState) {
+    emptyState.hidden =
+      Boolean(appliedPromotions.length);
+  }
+
+  appliedList.hidden =
+    !appliedPromotions.length;
+
+  if (totalsPanel) {
+    totalsPanel.hidden =
+      !appliedPromotions.length;
+  }
+
+  appliedList.innerHTML =
+    appliedPromotions.map(
+      promotion => {
+        const displayName =
+          clean(promotion.displayName) ||
+          clean(promotion.customerText) ||
+          clean(promotion.name) ||
+          'Factory Promotion';
+
+        const type =
+          clean(promotion.type)
+            .replace(/_/g, ' ');
+
+        const funding =
+          Math.max(
+            0,
+            money(promotion.dealerFunding)
+          );
+
+        return `
+          <div class="promotion-item">
+            <div>
+              <div class="promotion-item-name">
+                ${escapeHtml(displayName)}
+              </div>
+
+              <div class="promotion-item-meta">
+                ${escapeHtml(type || 'Promotion')}
+              </div>
+            </div>
+
+            <div class="promotion-item-values">
+              <div class="promotion-customer-savings">
+                -${formatMoney(promotion.amount)}
+              </div>
+
+              ${
+                funding > 0
+                  ? `
+                    <div class="promotion-dealer-funding">
+                      Dealer reimbursement:
+                      ${formatMoney(funding)}
+                    </div>
+                  `
+                  : ''
+              }
+            </div>
+          </div>
+        `;
+      }
+    ).join('');
+
+  if (customerSavingsTotal) {
+    customerSavingsTotal.textContent =
+      `-${formatMoney(customerSavings)}`;
+  }
+
+  if (dealerFundingTotal) {
+    dealerFundingTotal.textContent =
+      formatMoney(dealerFunding);
+  }
+
+  if (dealerFundingRow) {
+    dealerFundingRow.hidden =
+      dealerFunding <= 0;
+  }
+}
+
     function renderPricingManager() {
   const totals =
     appState.configuration?.totals || {};
@@ -1872,6 +2030,7 @@ if (panelBadge) {
         }).join('');
 
         renderPricingManager();
+renderPromotionsManager();
 renderFreightManager();
 
 card.hidden = false;

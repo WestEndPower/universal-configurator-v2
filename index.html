@@ -886,6 +886,99 @@
   }
 }
 
+.promotion-empty-state {
+  padding: 14px;
+  border: 1px dashed var(--border-color);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--muted-text);
+  text-align: center;
+}
+
+.promotion-list {
+  display: grid;
+  gap: 10px;
+}
+
+.promotion-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.promotion-item-name {
+  font-weight: 900;
+}
+
+.promotion-item-meta {
+  margin-top: 4px;
+  color: var(--muted-text);
+  font-size: 12px;
+}
+
+.promotion-item-values {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.promotion-customer-savings {
+  color: var(--success-color);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.promotion-dealer-funding {
+  margin-top: 4px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.promotion-totals {
+  margin-top: 14px;
+  border-top: 2px solid var(--brand-primary);
+}
+
+.promotion-total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 3px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 900;
+}
+
+.promotion-total-row strong {
+  color: var(--success-color);
+  white-space: nowrap;
+}
+
+.promotion-dealer-funding-row strong {
+  color: var(--text-color);
+}
+
+.promotion-empty-state[hidden],
+.promotion-list[hidden],
+.promotion-totals[hidden],
+.promotion-dealer-funding-row[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 700px) {
+  .promotion-item {
+    grid-template-columns: 1fr;
+  }
+
+  .promotion-item-values {
+    text-align: left;
+  }
+}
+
 .pricing-flow {
   display: grid;
   gap: 0;
@@ -1517,6 +1610,87 @@
       >
         Total Customer Savings:
         <strong id="pricing-total-savings">
+          $0.00
+        </strong>
+      </div>
+    </div>
+  </div>
+</details>
+
+<details
+  class="dealer-panel"
+  id="promotions-manager"
+>
+  <summary class="dealer-panel-summary">
+    <span
+      class="dealer-panel-arrow"
+      aria-hidden="true"
+    >
+      ▶
+    </span>
+
+    <span>
+      <span class="dealer-panel-title">
+        Promotions & Rebates
+      </span>
+
+      <span
+        class="dealer-panel-subtitle"
+        id="promotions-panel-subtitle"
+      >
+        No active promotions
+      </span>
+    </span>
+
+    <span class="dealer-panel-summary-right">
+      <span
+        class="dealer-panel-badge"
+        id="promotions-panel-badge"
+        hidden
+      >
+        Applied
+      </span>
+
+      <span
+        class="dealer-panel-amount"
+        id="promotions-panel-amount"
+      >
+        $0.00
+      </span>
+    </span>
+  </summary>
+
+  <div class="dealer-panel-content">
+    <div
+      class="promotion-empty-state"
+      id="promotions-empty-state"
+    >
+      No active promotions apply to this configuration.
+    </div>
+
+    <div
+      class="promotion-list"
+      id="promotions-applied-list"
+      hidden
+    ></div>
+
+    <div
+      class="promotion-totals"
+      id="promotion-totals"
+      hidden
+    >
+      <div class="promotion-total-row">
+        <span>Total Customer Savings</span>
+
+        <strong id="promotion-customer-savings-total">
+          -$0.00
+        </strong>
+      </div>
+
+      <div class="promotion-total-row promotion-dealer-funding-row">
+        <span>Dealer Reimbursement</span>
+
+        <strong id="promotion-dealer-funding-total">
           $0.00
         </strong>
       </div>
