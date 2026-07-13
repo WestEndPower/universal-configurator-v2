@@ -61,6 +61,13 @@
         quoteNumber: '',
         locationId: ''
       },
+
+      freight: {
+  mode: 'calculated',
+  manualAmount: 0,
+  overrideReason: ''
+},
+
       developer: {
         panelOpen: false,
         roundTestPrices: false,
@@ -1208,11 +1215,47 @@ const adjustedGrossMarginPercent =
             specialOrder: Boolean(appState.specialOrder)
           })
         : { status:'NOT_CONFIGURED', messages:['Freight Engine is unavailable.'], evaluated:[], applied:[], rejected:[], adjustments:[], charge:0 };
-      const freightCharge =
+      const calculatedFreightCharge =
   Math.max(
     0,
     money(freightEvaluation.charge)
   );
+
+const manualFreightActive =
+  appState.freight.mode === 'manual';
+
+const manualFreightAmount =
+  Math.max(
+    0,
+    money(appState.freight.manualAmount)
+  );
+
+const freightCharge =
+  manualFreightActive
+    ? manualFreightAmount
+    : calculatedFreightCharge;
+
+freightEvaluation.calculatedCharge =
+  calculatedFreightCharge;
+
+freightEvaluation.manualOverride =
+  manualFreightActive;
+
+freightEvaluation.manualAmount =
+  manualFreightActive
+    ? manualFreightAmount
+    : null;
+
+freightEvaluation.overrideReason =
+  manualFreightActive
+    ? clean(appState.freight.overrideReason)
+    : '';
+
+freightEvaluation.charge =
+  freightCharge;
+
+freightEvaluation.appliedCharge =
+  freightCharge;
 
 const totalAfterFreight =
   adjustedSubtotal + freightCharge;
@@ -1346,7 +1389,7 @@ netProfit:
 
 netMarginPercent:
   dealerProfit.netMarginPercent
-  
+
         },
         performance: {
           configurationBuildMs,
@@ -1471,6 +1514,122 @@ netMarginPercent:
       `;
     }
 
+    function renderFreightManager() {
+  const calculatedDisplay =
+    byId('freight-calculated-display');
+
+  const appliedDisplay =
+    byId('freight-applied-display');
+
+  const modeControl =
+    byId('freight-mode');
+
+  const manualAmountControl =
+    byId('freight-manual-amount');
+
+  const reasonControl =
+    byId('freight-override-reason');
+
+  if (
+    !calculatedDisplay ||
+    !appliedDisplay ||
+    !modeControl ||
+    !manualAmountControl ||
+    !reasonControl
+  ) {
+    return;
+  }
+
+  const freight =
+    appState.configuration?.freight || {};
+
+  const calculatedCharge =
+    money(
+      freight.calculatedCharge ??
+      freight.charge
+    );
+
+  const manualMode =
+    appState.freight.mode === 'manual';
+
+  const appliedCharge =
+    manualMode
+      ? money(appState.freight.manualAmount)
+      : calculatedCharge;
+
+      const adjustmentAmount =
+  appliedCharge -
+  calculatedCharge;
+
+  modeControl.value =
+  manualMode
+    ? 'manual'
+    : 'calculated';
+
+manualAmountControl.disabled =
+  !manualMode;
+
+reasonControl.disabled =
+  !manualMode;
+
+const calculatedButton =
+  byId('freight-use-calculated');
+
+const manualButton =
+  byId('freight-use-manual');
+
+const overrideStep =
+  byId('freight-override-step');
+
+  const adjustmentLabel =
+  byId('freight-adjustment-value');
+
+const overrideArrow =
+  byId('freight-override-arrow');
+
+if (calculatedButton) {
+  calculatedButton.classList.toggle(
+    'active',
+    !manualMode
+  );
+}
+
+if (manualButton) {
+  manualButton.classList.toggle(
+    'active',
+    manualMode
+  );
+}
+
+if (overrideStep) {
+  overrideStep.hidden =
+    !manualMode;
+}
+
+if (overrideArrow) {
+  overrideArrow.hidden =
+    !manualMode;
+}
+
+if (adjustmentLabel) {
+  adjustmentLabel.textContent =
+    `${adjustmentAmount >= 0 ? '+' : '-'}${formatMoney(Math.abs(adjustmentAmount))}`;
+}
+
+  manualAmountControl.value =
+    money(appState.freight.manualAmount)
+      .toFixed(2);
+
+  reasonControl.value =
+    clean(appState.freight.overrideReason);
+
+  calculatedDisplay.textContent =
+  formatMoney(calculatedCharge);
+
+appliedDisplay.textContent =
+  formatMoney(appliedCharge);
+}
+
     function renderCurrentConfiguration() {
       const configuration = calculateConfiguration();
       const entries = configuration.items;
@@ -1542,6 +1701,8 @@ netMarginPercent:
             </article>
           `;
         }).join('');
+
+        renderFreightManager();
 
       card.hidden = false;
     }
@@ -3083,6 +3244,13 @@ netMarginPercent:
 
     function newQuote() {
       appState.cart = {};
+
+      appState.freight = {
+  mode: 'calculated',
+  manualAmount: 0,
+  overrideReason: ''
+};
+
       appState.quote = { customer:{}, preparedBy:'', validThrough:defaultQuoteValidThrough(), terms:effectiveDealer().defaultTerms, quoteNumber:'', locationId:effectiveDealer().defaultLocationId };
       writeQuoteForm({});
       calculateConfiguration();
@@ -3329,6 +3497,102 @@ netMarginPercent:
       byId('preview-quote').addEventListener('click', previewQuote);
       byId('save-quote').addEventListener('click', saveCurrentQuote);
       byId('new-quote').addEventListener('click', newQuote);
+
+      const freightMode =
+  byId('freight-mode');
+
+const freightManualAmount =
+  byId('freight-manual-amount');
+
+const freightOverrideReason =
+  byId('freight-override-reason');
+
+const resetFreightButton =
+  byId('reset-freight');
+
+const calculatedFreightButton =
+  byId('freight-use-calculated');
+
+const manualFreightButton =
+  byId('freight-use-manual');
+
+function setFreightMode(mode) {
+  appState.freight.mode =
+    mode === 'manual'
+      ? 'manual'
+      : 'calculated';
+
+  if (freightMode) {
+    freightMode.value =
+      appState.freight.mode;
+  }
+
+  calculateConfiguration();
+  renderCurrentConfiguration();
+}
+
+if (calculatedFreightButton) {
+  calculatedFreightButton.addEventListener(
+    'click',
+    () => {
+      setFreightMode('calculated');
+    }
+  );
+}
+
+if (manualFreightButton) {
+  manualFreightButton.addEventListener(
+    'click',
+    () => {
+      setFreightMode('manual');
+    }
+  );
+}
+
+if (freightManualAmount) {
+  freightManualAmount.addEventListener(
+    'change',
+    event => {
+      appState.freight.manualAmount =
+        Math.max(
+          0,
+          money(event.target.value)
+        );
+
+      calculateConfiguration();
+      renderCurrentConfiguration();
+    }
+  );
+}
+
+if (freightOverrideReason) {
+  freightOverrideReason.addEventListener(
+    'input',
+    event => {
+      appState.freight.overrideReason =
+        clean(event.target.value);
+
+      renderFreightManager();
+    }
+  );
+}
+
+if (resetFreightButton) {
+  resetFreightButton.addEventListener(
+    'click',
+    () => {
+      appState.freight = {
+        mode: 'calculated',
+        manualAmount: 0,
+        overrideReason: ''
+      };
+
+      calculateConfiguration();
+      renderCurrentConfiguration();
+    }
+  );
+}
+
       const dealerSettingsToggle = byId('toggle-dealer-settings');
       const dealerSettingsCard = byId('dealer-settings-card');
       const saveDealerSettingsButton = byId('save-dealer-settings');

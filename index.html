@@ -800,6 +800,86 @@
     .inspector-pane { display:none; }
     .inspector-pane.active { display:block; }
 
+    .freight-mode-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.freight-mode-button.active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #fff;
+}
+
+.freight-flow {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.freight-flow-step {
+  width: min(100%, 600px);
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #fff;
+  text-align: center;
+}
+
+.freight-flow-label {
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.freight-flow-value {
+  margin-top: 7px;
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.freight-flow-arrow {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--brand-primary);
+}
+
+.freight-override-step {
+  border-color: #e2c45c;
+  background: #fffdf5;
+}
+
+.freight-applied-step {
+  border: 2px solid var(--brand-primary);
+}
+
+.freight-override-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
+  margin-top: 14px;
+  text-align: left;
+}
+
+@media (max-width: 700px) {
+  .freight-mode-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .freight-override-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
     .quote-builder {
       margin-top: 18px;
@@ -1179,6 +1259,133 @@
         <strong id="configuration-total">$0.00</strong>
       </div>
 
+      <div class="quote-builder" id="freight-manager">
+  <h3 style="margin:0 0 14px;">
+    Freight Manager
+  </h3>
+
+  <div class="freight-mode-buttons">
+    <button
+      class="button freight-mode-button active"
+      id="freight-use-calculated"
+      type="button"
+      data-freight-mode="calculated"
+    >
+      Use Calculated Freight
+    </button>
+
+    <button
+      class="button freight-mode-button"
+      id="freight-use-manual"
+      type="button"
+      data-freight-mode="manual"
+    >
+      Manual Override
+    </button>
+  </div>
+
+  <input
+    id="freight-mode"
+    type="hidden"
+    value="calculated"
+  >
+
+  <div class="freight-flow">
+    <div class="freight-flow-step">
+      <div class="freight-flow-label">
+        Calculated Freight
+      </div>
+
+      <div
+        class="freight-flow-value"
+        id="freight-calculated-display"
+      >
+        $0.00
+      </div>
+    </div>
+
+    <div class="freight-flow-arrow">
+      ↓
+    </div>
+
+    <div
+      class="freight-flow-step freight-override-step"
+      id="freight-override-step"
+      hidden
+    >
+      <div class="freight-flow-label">
+        Manual Override
+      </div>
+
+      <div
+  id="freight-adjustment-value"
+  class="freight-flow-value"
+>
+  +$0.00
+</div>
+
+      <div class="freight-override-grid">
+        <div>
+          <label for="freight-manual-amount">
+            Override Amount
+          </label>
+
+          <input
+            id="freight-manual-amount"
+            type="number"
+            min="0"
+            step="0.01"
+            value="0.00"
+          >
+        </div>
+
+        <div>
+          <label for="freight-override-reason">
+            Override Reason
+          </label>
+
+          <input
+            id="freight-override-reason"
+            type="text"
+            placeholder="Example: Quoted factory freight"
+          >
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="freight-flow-arrow"
+      id="freight-override-arrow"
+      hidden
+    >
+      ↓
+    </div>
+
+    <div class="freight-flow-step freight-applied-step">
+      <div class="freight-flow-label">
+        Applied to Quote
+      </div>
+
+      <div
+        class="freight-flow-value"
+        id="freight-applied-display"
+      >
+        $0.00
+      </div>
+    </div>
+  </div>
+
+  <div class="quote-actions">
+    <button
+      class="button"
+      id="reset-freight"
+      type="button"
+    >
+      Reset to Calculated Freight
+    </button>
+  </div>
+</div>
+  
       <div class="quote-builder">
         <h3 style="margin:0 0 12px;">Customer Quote</h3>
         <div class="quote-form-grid">

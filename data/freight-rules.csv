@@ -1,0 +1,6 @@
+RuleID,Priority,BrandID,ProductID,SKU,Category,System,FreightGroup,MinQty,MaxQty,DeliveryMethod,SpecialOrder,Basis,ChargeType,Amount,Percent,ApplyPer,MinimumCharge,MaximumCharge,DisplayLabel,Notes,Active
+FRT-001,1,,,,,,HANDHELD,1,999,All,,SellingPrice,Fixed,25,0,Unit,0,0,Factory Freight,Handheld products,T
+FRT-002,1,,,,,,ZERO-TURN,1,1,All,,SellingPrice,Fixed,200,0,Line,0,0,Factory Freight,Single zero-turn,T
+FRT-003,1,,,,,,ZERO-TURN,2,2,All,,SellingPrice,Fixed,300,0,Line,0,0,Factory Freight,Two zero-turns,T
+FRT-004,1,,,,,,ZERO-TURN,3,999,All,,SellingPrice,None,0,0,Line,0,0,Factory Freight,Freight waived,T
+FRT-005,1,,,,,,TRACTOR,1,999,All,,DealerCost,Percent,0,5,Line,0,0,Factory Freight,Tractors,T
