@@ -1138,6 +1138,120 @@
   }
 }
 
+.finance-program-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.finance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.finance-summary-box {
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.finance-summary-label {
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.finance-summary-value {
+  margin-top: 7px;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.finance-summary-note {
+  margin-top: 5px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.finance-payment-flow {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.finance-payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.finance-payment-row:last-child {
+  border-bottom: 0;
+}
+
+.finance-payment-row span {
+  font-weight: 800;
+}
+
+.finance-payment-row strong {
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.finance-payment-row.customer-total {
+  border-top: 3px solid var(--brand-primary);
+  background: var(--brand-accent);
+}
+
+.finance-payment-row.customer-total strong {
+  font-size: 21px;
+}
+
+.finance-payment-row.dealer-fee-row {
+  background: #fffdf5;
+}
+
+.finance-program-empty {
+  padding: 16px;
+  border: 1px dashed var(--border-color);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--muted-text);
+  text-align: center;
+}
+
+.finance-program-empty[hidden],
+.finance-program-details[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 700px) {
+  .finance-program-grid,
+  .finance-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-payment-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
     .quote-builder {
       margin-top: 18px;
       padding-top: 18px;
@@ -1191,7 +1305,7 @@
           </button>
 
           <div class="version-badge" id="version-badge">
-  Version 3.16.0
+  Version 3.18.0
 </div>
         </div>
       </div>
@@ -1255,7 +1369,7 @@
       <div class="error-panel" id="error-panel"></div>
 
       <div class="app-ready-panel" id="app-ready-panel">
-        Version 3.16.0 dealer identity and settings loaded successfully.
+        Version 3.18.0 dealer identity and settings loaded successfully.
       </div>
     </section>
 
@@ -1864,7 +1978,172 @@
     </div>
   </div>
 </details>
-  
+ 
+<details
+  class="dealer-panel"
+  id="financing-manager"
+>
+  <summary class="dealer-panel-summary">
+    <span
+      class="dealer-panel-arrow"
+      aria-hidden="true"
+    >
+      ▶
+    </span>
+
+    <span>
+      <span class="dealer-panel-title">
+        Financing
+      </span>
+
+      <span
+        class="dealer-panel-subtitle"
+        id="financing-panel-subtitle"
+      >
+        Select a financing program
+      </span>
+    </span>
+
+    <span class="dealer-panel-summary-right">
+      <span
+        class="dealer-panel-badge"
+        id="financing-panel-badge"
+        hidden
+      >
+        Selected
+      </span>
+
+      <span
+        class="dealer-panel-amount"
+        id="financing-panel-amount"
+      >
+        $0.00/mo
+      </span>
+    </span>
+  </summary>
+
+  <div class="dealer-panel-content">
+    <div class="finance-program-grid">
+      <div>
+        <label for="finance-program-select">
+          Financing Program
+        </label>
+
+        <select id="finance-program-select">
+          <option value="">
+            Select Financing Program
+          </option>
+        </select>
+      </div>
+
+      <div>
+        <label for="finance-amount-financed">
+          Amount Financed
+        </label>
+
+        <input
+          id="finance-amount-financed"
+          type="text"
+          value="$0.00"
+          readonly
+        >
+      </div>
+    </div>
+
+    <div
+      class="finance-program-empty"
+      id="finance-program-empty"
+    >
+      Select an eligible financing program to view payment details.
+    </div>
+
+    <div
+      class="finance-program-details"
+      id="finance-program-details"
+      hidden
+    >
+      <div class="finance-summary-grid">
+        <div class="finance-summary-box">
+          <div class="finance-summary-label">
+            APR
+          </div>
+
+          <div
+            class="finance-summary-value"
+            id="finance-apr"
+          >
+            0.00%
+          </div>
+        </div>
+
+        <div class="finance-summary-box">
+          <div class="finance-summary-label">
+            Term
+          </div>
+
+          <div
+            class="finance-summary-value"
+            id="finance-term"
+          >
+            0 Months
+          </div>
+        </div>
+
+        <div class="finance-summary-box">
+          <div class="finance-summary-label">
+            Estimated Monthly Payment
+          </div>
+
+          <div
+            class="finance-summary-value"
+            id="finance-monthly-payment"
+          >
+            $0.00
+          </div>
+
+          <div class="finance-summary-note">
+            Estimated payment before lender approval
+          </div>
+        </div>
+      </div>
+
+      <div class="finance-payment-flow">
+        <div class="finance-payment-row">
+          <span>Amount Financed</span>
+
+          <strong id="finance-financed-principal">
+            $0.00
+          </strong>
+        </div>
+
+        <div class="finance-payment-row">
+          <span>Application Fee</span>
+
+          <strong id="finance-application-fee">
+            $0.00
+          </strong>
+        </div>
+
+        <div class="finance-payment-row customer-total">
+          <span>Total Customer Payback</span>
+
+          <strong id="finance-total-payback">
+            $0.00
+          </strong>
+        </div>
+
+        <div class="finance-payment-row dealer-fee-row">
+          <span>Dealer Program Fee</span>
+
+          <strong id="finance-dealer-fee">
+            $0.00
+          </strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</details>
+
       <div class="quote-builder">
         <h3 style="margin:0 0 12px;">Customer Quote</h3>
         <div class="quote-form-grid">

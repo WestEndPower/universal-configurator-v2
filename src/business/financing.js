@@ -17,7 +17,28 @@
     const parsed = Math.trunc(number(value));
     return parsed > 0 ? parsed : fallback;
   };
-  const matches = (ruleValue, itemValue) => !text(ruleValue) || norm(ruleValue) === norm(itemValue);
+  const matches = (
+    ruleValue,
+    itemValue
+  ) => {
+    const expected =
+      norm(ruleValue);
+
+    const actual =
+      norm(itemValue);
+
+    if (
+      !expected ||
+      expected === 'all' ||
+      expected === 'all-products' ||
+      expected === '*' ||
+      expected === 'any'
+    ) {
+      return true;
+    }
+
+    return expected === actual;
+  };
 
   function parseDate(value, endOfDay = false) {
     if (!text(value)) return null;
@@ -36,16 +57,42 @@
   }
 
   function itemMatches(program, item) {
-    return matches(program.BrandID, item.brandId) &&
-      matches(program.ProductID, item.productId) &&
-      matches(program.SKU, item.sku) &&
-      matches(program.Category, item.category) &&
-      matches(program.System, item.system) &&
-      matches(program.FinancingGroup, item.financingGroup);
+    return (
+      matches(
+        program.BrandID ||
+        program.Brand,
+        item.brandId
+      ) &&
+      matches(
+        program.ProductID,
+        item.productId
+      ) &&
+      matches(
+        program.SKU,
+        item.sku
+      ) &&
+      matches(
+        program.Category,
+        item.category
+      ) &&
+      matches(
+        program.System,
+        item.system
+      ) &&
+      matches(
+        program.FinancingGroup ||
+        program.FinanceGroup,
+        item.financingGroup
+      )
+    );
   }
 
   function evaluateProgram(program, context, now) {
-    const id = text(program.ProgramID) || text(program.Label) || '(unnamed)';
+    const id =
+      text(program.ProgramID) ||
+      text(program.Label) ||
+      text(program.ProgramName) ||
+      '(unnamed)';
     if (!active(program.Active)) return { programId:id, status:'REJECTED', reason:'Program is inactive.' };
 
     const start = parseDate(program.StartDate);
@@ -64,8 +111,15 @@
       return { programId:id, status:'REJECTED', reason:'Program does not apply to the configured products.' };
     }
 
-    if (text(program.RequiresPromotion) && !truthy(context.promotionApplied)) {
-      return { programId:id, status:'REJECTED', reason:'Required promotion is not applied.' };
+    if (
+      truthy(program.RequiresPromotion) &&
+      !truthy(context.promotionApplied)
+    ) {
+      return {
+        programId: id,
+        status: 'REJECTED',
+        reason: 'Required promotion is not applied.'
+      };
     }
 
     const minimumDown = Math.max(0, number(program.MinimumDown));
@@ -79,7 +133,11 @@
 
     return {
       programId:id,
-      label:text(program.Label) || id,
+      label:
+        text(program.Label) ||
+        text(program.ProgramName) ||
+        text(program.CustomerText) ||
+        id,
       status:'ELIGIBLE',
       type:text(program.Type) || 'Finance',
       apr,
@@ -92,7 +150,11 @@
       estimatedTotalPayments:monthly * termMonths,
       dealerFee,
       priority:number(program.Priority),
-      financingGroup:text(program.FinancingGroup),
+      financingGroup:
+        text(
+          program.FinancingGroup ||
+          program.FinanceGroup
+        ),
       rebateEligible:!text(program.RebateEligible) || truthy(program.RebateEligible),
       customerText:text(program.CustomerText),
       notes:text(program.Notes)

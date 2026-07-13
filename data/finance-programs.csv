@@ -1,0 +1,4 @@
+ProgramID,ProgramName,CustomerText,Type,APR,TermMonths,MinAmount,MaxAmount,MinimumDown,DealerFeePercent,ApplicationFee,Priority,Brand,FinanceGroup,StartDate,EndDate,RequiresPromotion,RebateEligible,Active,Notes
+FIN-599-12,5.99% for 12 Months,5.99% for 12 Months,Finance,5.99,12,500,0,0,0,0,10,,all-products,2026-01-01,2026-12-31,F,T,T,Standard financing
+FIN-599-60,5.99% for 60 Months,5.99% for 60 Months,Finance,5.99,60,3000,0,0,0,0,20,,all-products,2026-01-01,2026-12-31,F,T,T,Standard long-term financing
+FIN-000-48,0% for 48 Months,0% for 48 Months,Finance,0,48,3000,0,0,6,50,30,,all-products,2026-01-01,2026-12-31,F,F,T,Promotional financing

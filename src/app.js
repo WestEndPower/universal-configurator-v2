@@ -68,6 +68,10 @@
   overrideReason: ''
 },
 
+financeSelection: {
+        programId: ''
+      },
+
       developer: {
         panelOpen: false,
         roundTestPrices: false,
@@ -1184,7 +1188,12 @@ function calculateDealerProfit(
             brand: appState.brand,
             dealer: appState.dealer,
             application: appState.application,
-            financeSelected: false
+            financeSelected:
+              Boolean(
+                clean(
+                  appState.financeSelection?.programId
+                )
+              )
           })
         : { status:'NOT_CONFIGURED', messages:['Promotion Engine is unavailable.'], applied:[], rejected:[], adjustments:[], customerSavings:0, dealerFunding:0 };
       const promotionSavings = Math.min(subtotal, money(promotionEvaluation.customerSavings));
@@ -1317,6 +1326,13 @@ amountFinanced: totalAfterTax,
             application: appState.application
           })
         : { status:'NOT_CONFIGURED', messages:['Finance Engine is unavailable.'], eligible:[], rejected:[], selected:null, adjustments:[], dealerFee:0, applicationFee:0 };
+
+        if (
+        selectedFinanceProgramId &&
+        !financeEvaluation.selected
+      ) {
+        appState.financeSelection.programId = '';
+      }
 
       const pricingMs = performance.now() - pricingStarted;
       const rules = runUniversalRules(items, {
@@ -1957,6 +1973,339 @@ if (panelBadge) {
 }
 }
 
+function renderFinancingManager() {
+  const evaluation =
+    appState.configuration?.finance || {};
+
+  const eligiblePrograms =
+    Array.isArray(evaluation.eligible)
+      ? evaluation.eligible
+      : [];
+
+  const selectedProgram =
+    evaluation.selected || null;
+
+  const selectedProgramId =
+    clean(
+      selectedProgram?.programId ||
+      appState.financeSelection?.programId
+    );
+
+  const programSelect =
+    byId('finance-program-select');
+
+  const amountFinancedDisplay =
+    byId('finance-amount-financed');
+
+  const emptyState =
+    byId('finance-program-empty');
+
+  const detailsPanel =
+    byId('finance-program-details');
+
+  const panelSubtitle =
+    byId('financing-panel-subtitle');
+
+  const panelBadge =
+    byId('financing-panel-badge');
+
+  const panelAmount =
+    byId('financing-panel-amount');
+
+  const aprDisplay =
+    byId('finance-apr');
+
+  const termDisplay =
+    byId('finance-term');
+
+  const monthlyPaymentDisplay =
+    byId('finance-monthly-payment');
+
+  const financedPrincipalDisplay =
+    byId('finance-financed-principal');
+
+  const applicationFeeDisplay =
+    byId('finance-application-fee');
+
+  const totalPaybackDisplay =
+    byId('finance-total-payback');
+
+  const dealerFeeDisplay =
+    byId('finance-dealer-fee');
+
+  if (
+    !programSelect ||
+    !amountFinancedDisplay ||
+    !emptyState ||
+    !detailsPanel
+  ) {
+    return;
+  }
+
+  const amountFinanced =
+    Math.max(
+      0,
+      money(
+        evaluation.amountFinanced ??
+        appState.configuration?.totals?.total
+      )
+    );
+
+  amountFinancedDisplay.value =
+    formatMoney(amountFinanced);
+
+  const currentOptions =
+    eligiblePrograms.map(program => {
+      const programId =
+        clean(program.programId);
+
+      const label =
+        clean(program.label) ||
+        programId ||
+        'Financing Program';
+
+      const apr =
+        Math.max(
+          0,
+          money(program.apr)
+        );
+
+      const termMonths =
+        Math.max(
+          0,
+          Math.floor(
+            money(program.termMonths)
+          )
+        );
+
+      const monthlyPayment =
+        Math.max(
+          0,
+          money(
+            program.estimatedMonthlyPayment
+          )
+        );
+
+      const optionLabel = [
+        label,
+        `${apr.toFixed(2)}%`,
+        termMonths > 0
+          ? `${termMonths} months`
+          : '',
+        monthlyPayment > 0
+          ? `${formatMoney(monthlyPayment)}/mo`
+          : ''
+      ].filter(Boolean).join(' • ');
+
+      return `
+        <option
+          value="${escapeHtml(programId)}"
+        >
+          ${escapeHtml(optionLabel)}
+        </option>
+      `;
+    }).join('');
+
+  programSelect.innerHTML = `
+    <option value="">
+      Select Financing Program
+    </option>
+
+    ${currentOptions}
+  `;
+
+  programSelect.value =
+    selectedProgram
+      ? clean(selectedProgram.programId)
+      : '';
+
+  if (!eligiblePrograms.length) {
+    programSelect.disabled = true;
+
+    emptyState.hidden = false;
+    detailsPanel.hidden = true;
+
+    emptyState.textContent =
+      amountFinanced > 0
+        ? 'No financing programs are eligible for this configuration.'
+        : 'Add equipment to view available financing programs.';
+
+    if (panelSubtitle) {
+      panelSubtitle.textContent =
+        'No eligible financing programs';
+    }
+
+    if (panelBadge) {
+      panelBadge.hidden = true;
+    }
+
+    if (panelAmount) {
+      panelAmount.textContent =
+        '$0.00/mo';
+    }
+
+    return;
+  }
+
+  programSelect.disabled = false;
+
+  if (!selectedProgram) {
+    emptyState.hidden = false;
+    detailsPanel.hidden = true;
+
+    emptyState.textContent =
+      `${eligiblePrograms.length} eligible financing program${
+        eligiblePrograms.length === 1
+          ? ''
+          : 's'
+      } available. Select a program to view payment details.`;
+
+    if (panelSubtitle) {
+      panelSubtitle.textContent =
+        `${eligiblePrograms.length} eligible program${
+          eligiblePrograms.length === 1
+            ? ''
+            : 's'
+        } available`;
+    }
+
+    if (panelBadge) {
+      panelBadge.hidden = true;
+    }
+
+    if (panelAmount) {
+      panelAmount.textContent =
+        '$0.00/mo';
+    }
+
+    return;
+  }
+
+  emptyState.hidden = true;
+  detailsPanel.hidden = false;
+
+  const apr =
+    Math.max(
+      0,
+      money(selectedProgram.apr)
+    );
+
+  const termMonths =
+    Math.max(
+      0,
+      Math.floor(
+        money(selectedProgram.termMonths)
+      )
+    );
+
+  const monthlyPayment =
+    Math.max(
+      0,
+      money(
+        selectedProgram.estimatedMonthlyPayment
+      )
+    );
+
+  const applicationFee =
+    Math.max(
+      0,
+      money(selectedProgram.applicationFee)
+    );
+
+  const financedPrincipal =
+    Math.max(
+      0,
+      money(selectedProgram.financedPrincipal)
+    );
+
+  const totalPayback =
+    Math.max(
+      0,
+      money(
+        selectedProgram.estimatedTotalPayments
+      )
+    );
+
+  const dealerFee =
+    Math.max(
+      0,
+      money(selectedProgram.dealerFee)
+    );
+
+  const dealerFeePercent =
+    Math.max(
+      0,
+      money(selectedProgram.dealerFeePercent)
+    );
+
+  if (aprDisplay) {
+    aprDisplay.textContent =
+      `${apr.toFixed(2)}%`;
+  }
+
+  if (termDisplay) {
+    termDisplay.textContent =
+      `${termMonths} Month${
+        termMonths === 1
+          ? ''
+          : 's'
+      }`;
+  }
+
+  if (monthlyPaymentDisplay) {
+    monthlyPaymentDisplay.textContent =
+      formatMoney(monthlyPayment);
+  }
+
+  if (financedPrincipalDisplay) {
+    financedPrincipalDisplay.textContent =
+      formatMoney(financedPrincipal);
+  }
+
+  if (applicationFeeDisplay) {
+    applicationFeeDisplay.textContent =
+      formatMoney(applicationFee);
+  }
+
+  if (totalPaybackDisplay) {
+    totalPaybackDisplay.textContent =
+      formatMoney(totalPayback);
+  }
+
+  if (dealerFeeDisplay) {
+    dealerFeeDisplay.textContent =
+      dealerFeePercent > 0
+        ? `${formatMoney(dealerFee)} (${dealerFeePercent.toFixed(2)}%)`
+        : formatMoney(dealerFee);
+  }
+
+  if (panelSubtitle) {
+    panelSubtitle.textContent = [
+      clean(selectedProgram.label) ||
+        clean(selectedProgram.programId),
+      `${apr.toFixed(2)}%`,
+      `${termMonths} months`
+    ].filter(Boolean).join(' • ');
+  }
+
+  if (panelBadge) {
+    panelBadge.hidden = false;
+  }
+
+  if (panelAmount) {
+    panelAmount.textContent =
+      `${formatMoney(monthlyPayment)}/mo`;
+  }
+
+  if (
+    selectedProgramId &&
+    !appState.financeSelection.programId
+  ) {
+    appState.financeSelection.programId =
+      selectedProgramId;
+  }
+}
+
     function renderCurrentConfiguration() {
       const configuration = calculateConfiguration();
       const entries = configuration.items;
@@ -2032,6 +2381,7 @@ if (panelBadge) {
         renderPricingManager();
 renderPromotionsManager();
 renderFreightManager();
+renderFinancingManager();
 
 card.hidden = false;
     }
@@ -3925,6 +4275,32 @@ if (resetFreightButton) {
 
       calculateConfiguration();
       renderCurrentConfiguration();
+    }
+  );
+}
+
+const financeProgramSelect =
+  byId('finance-program-select');
+
+if (financeProgramSelect) {
+  financeProgramSelect.addEventListener(
+    'change',
+    event => {
+      appState.financeSelection.programId =
+        clean(event.target.value);
+
+      calculateConfiguration();
+      renderCurrentConfiguration();
+
+      const financingPanel =
+        byId('financing-manager');
+
+      if (
+        financingPanel &&
+        appState.financeSelection.programId
+      ) {
+        financingPanel.open = true;
+      }
     }
   );
 }
