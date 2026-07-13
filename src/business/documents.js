@@ -46,7 +46,49 @@
       createdAt,
       status: 'DRAFT',
       application: { name:text(application.name), version:text(application.version), currency:text(application.currency || 'USD'), locale:text(application.locale || 'en-US') },
-      dealer: { name:text(dealer.name || dealer.DealerName), address:text(dealer.address || dealer.Address), city:text(dealer.city || dealer.City), state:text(dealer.state || dealer.State), zip:text(dealer.zip || dealer.ZIP), phone:text(dealer.phone || dealer.Phone), email:text(dealer.email || dealer.Email), website:text(dealer.website || dealer.Website) },
+      dealer: {
+  name: text(
+    dealer.dealerName ||
+    dealer.name ||
+    dealer.DealerName
+  ),
+
+  address: text(
+    dealer.address ||
+    dealer.Address
+  ),
+
+  city: text(
+    dealer.city ||
+    dealer.City
+  ),
+
+  state: text(
+    dealer.state ||
+    dealer.State
+  ),
+
+  zip: text(
+    dealer.zip ||
+    dealer.ZIP
+  ),
+
+  phone: text(
+    dealer.phone ||
+    dealer.Phone
+  ),
+
+  email: text(
+    dealer.email ||
+    dealer.Email
+  ),
+
+  website: text(
+    dealer.website ||
+    dealer.Website
+  )
+},
+
       brand: { id:text(brand.id || brand.brandId), name:text(brand.name || brand.BrandName) },
       preparedBy: text(context.preparedBy),
       customer: { name:text(customer.name), business:text(customer.business), phone:text(customer.phone), email:text(customer.email), address:text(customer.address), city:text(customer.city), state:text(customer.state), zip:text(customer.zip), notes:text(customer.notes) },

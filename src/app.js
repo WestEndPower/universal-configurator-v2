@@ -612,19 +612,45 @@
           quantityPerProduct * productQuantity;
 
         return {
-          componentId: clean(component.ComponentID),
-          sku: clean(component.SKU),
-          name:
-            clean(component.ComponentName) ||
-            clean(component.SKU) ||
-            clean(component.ComponentID),
-          type: clean(component.ComponentType) || 'Component',
-          system: clean(component.System),
-          quantityPerProduct,
-          quantity: totalQuantity,
-          unitPrice,
-          lineTotal: unitPrice * totalQuantity
-        };
+  componentId:
+    clean(component.ComponentID),
+
+  sku:
+    clean(component.SKU),
+
+  name:
+    clean(component.ComponentName) ||
+    clean(component.SKU) ||
+    clean(component.ComponentID),
+
+  type:
+    clean(component.ComponentType) ||
+    'Component',
+
+  system:
+    clean(component.System),
+
+  quantityPerProduct,
+
+  quantity:
+    totalQuantity,
+
+  unitPrice,
+
+  msrp:
+    money(component.MSRP) ||
+    money(component.Price) ||
+    unitPrice,
+
+  dealerCost:
+    money(component.DealerCost),
+
+  advertisingFeePercent:
+    money(component.AdvertisingFeePercent),
+
+  lineTotal:
+    unitPrice * totalQuantity
+};
       }).filter(Boolean);
     }
 
@@ -818,61 +844,286 @@
       return result;
     }
 
-    function calculateConfiguration() {
-      const calculationStarted = performance.now();
-      const buildStarted = performance.now();
-      const items = Object.values(appState.cart).map(item => {
-        const product = productById(item.productId);
+    function buildConfigurationItems() {
+  return Object.values(appState.cart)
+    .map(item => {
+      const product =
+        productById(item.productId);
 
-        if (!product) {
-          return null;
-        }
+      if (!product) {
+        return null;
+      }
 
-        const quantity = positiveInteger(item.quantity, 1);
-        const productLine = priceLine({
+      const quantity =
+        positiveInteger(
+          item.quantity,
+          1
+        );
+
+      const productLine =
+        priceLine({
           type: 'Product',
           id: product.ProductID,
           name: product.ProductName,
           sku: product.SKU,
           quantity,
-          unitPrice: money(item.unitPrice) || productUnitPrice(product)
+          unitPrice:
+            money(item.unitPrice) ||
+            productUnitPrice(product)
         });
-        const components = selectedComponentsForCartItem(item).map(component => ({
-          ...component,
-          lineTotal: priceLine({
-            type: component.type,
-            id: component.componentId,
-            name: component.name,
-            sku: component.sku,
-            quantity: component.quantity,
-            unitPrice: component.unitPrice
-          }).lineTotal
-        }));
-        const componentTotal = components.reduce(
-          (total, component) => total + component.lineTotal,
+
+      const components =
+        selectedComponentsForCartItem(item)
+          .map(component => ({
+            ...component,
+
+            lineTotal:
+              priceLine({
+                type:
+                  component.type,
+
+                id:
+                  component.componentId,
+
+                name:
+                  component.name,
+
+                sku:
+                  component.sku,
+
+                quantity:
+                  component.quantity,
+
+                unitPrice:
+                  component.unitPrice
+              }).lineTotal
+          }));
+
+      const componentTotal =
+        components.reduce(
+          (total, component) =>
+            total +
+            component.lineTotal,
           0
         );
 
-        return {
-          productId: clean(product.ProductID),
-          sku: clean(product.SKU),
-          model: clean(product.Model),
-          name: clean(product.ProductName),
-          category: clean(product.Category),
-          system: clean(product.System),
-          freightGroup: clean(product.FreightGroup || product.DeliveryGroup || product.Category),
-          financingGroup: clean(product.FinancingGroup),
-          brandId: clean(product.BrandID || appState.brand?.brandId),
-          quantity,
-          unitPrice: productLine.unitPrice,
-          productTotal: productLine.lineTotal,
-          components,
+      const componentListTotal =
+        components.reduce(
+          (total, component) =>
+            total +
+            (
+              (
+                money(component.msrp) ||
+                component.unitPrice
+              ) *
+              component.quantity
+            ),
+          0
+        );
+
+      const productDealerCostTotal =
+  money(product.DealerCost) *
+  quantity;
+
+const componentDealerCostTotal =
+  components.reduce(
+    (total, component) =>
+      total +
+      (
+        money(component.dealerCost) *
+        component.quantity
+      ),
+    0
+  );
+
+const dealerCostTotal =
+  productDealerCostTotal +
+  componentDealerCostTotal;
+
+const productAdvertisingFeeTotal =
+  productDealerCostTotal *
+  (
+    money(product.AdvertisingFeePercent) /
+    100
+  );
+
+const componentAdvertisingFeeTotal =
+  components.reduce(
+    (total, component) =>
+      total +
+      (
+        money(component.dealerCost) *
+        component.quantity *
+        (
+          money(
+            component.advertisingFeePercent
+          ) / 100
+        )
+      ),
+    0
+  );
+
+const advertisingFeeTotal =
+  productAdvertisingFeeTotal +
+  componentAdvertisingFeeTotal;
+
+const trueDealerCostTotal =
+  dealerCostTotal +
+  advertisingFeeTotal;
+
+return {
+        productId:
+          clean(product.ProductID),
+
+        sku:
+          clean(product.SKU),
+
+        model:
+          clean(product.Model),
+
+        name:
+          clean(product.ProductName),
+
+        category:
+          clean(product.Category),
+
+        system:
+          clean(product.System),
+
+        freightGroup:
+          clean(
+            product.FreightGroup ||
+            product.DeliveryGroup ||
+            product.Category
+          ),
+
+        financingGroup:
+          clean(product.FinancingGroup),
+
+        brandId:
+          clean(
+            product.BrandID ||
+            appState.brand?.brandId
+          ),
+
+        quantity,
+
+        unitPrice:
+          productLine.unitPrice,
+
+        productTotal:
+          productLine.lineTotal,
+
+        components,
+
+        componentTotal,
+
+        lineTotal:
+          productLine.lineTotal +
           componentTotal,
-          lineTotal: productLine.lineTotal + componentTotal,
-          listTotal: (money(product.MSRP) || productLine.unitPrice) * quantity + components.reduce((sum, component) => sum + ((money(component.msrp) || component.unitPrice) * component.quantity), 0),
-          dealerCostTotal: money(product.DealerCost) * quantity + components.reduce((sum, component) => sum + money(component.dealerCost) * component.quantity, 0)
-        };
-      }).filter(Boolean);
+
+        listTotal:
+          (
+            money(product.MSRP) ||
+            productLine.unitPrice
+          ) *
+          quantity +
+          componentListTotal,
+
+        productDealerCostTotal,
+
+componentDealerCostTotal,
+
+dealerCostTotal,
+
+advertisingFeeTotal,
+
+trueDealerCostTotal
+      };
+    })
+    .filter(Boolean);
+}
+
+function calculateDealerProfit(
+  items,
+  sellingSubtotal,
+  dealerFunding = 0
+) {
+  const dealerCost =
+    items.reduce(
+      (total, item) =>
+        total +
+        money(item.dealerCostTotal),
+      0
+    );
+
+  const advertisingFee =
+    items.reduce(
+      (total, item) =>
+        total +
+        money(item.advertisingFeeTotal),
+      0
+    );
+
+  const trueDealerCost =
+    dealerCost +
+    advertisingFee;
+
+  const normalizedSellingSubtotal =
+    Math.max(
+      0,
+      money(sellingSubtotal)
+    );
+
+  const normalizedDealerFunding =
+    Math.max(
+      0,
+      money(dealerFunding)
+    );
+
+  const grossProfit =
+    normalizedSellingSubtotal -
+    dealerCost;
+
+  const grossMarginPercent =
+    normalizedSellingSubtotal > 0
+      ? (
+          grossProfit /
+          normalizedSellingSubtotal
+        ) * 100
+      : 0;
+
+  const netProfit =
+    normalizedSellingSubtotal +
+    normalizedDealerFunding -
+    trueDealerCost;
+
+  const netMarginPercent =
+    normalizedSellingSubtotal > 0
+      ? (
+          netProfit /
+          normalizedSellingSubtotal
+        ) * 100
+      : 0;
+
+  return {
+    dealerCost,
+    advertisingFee,
+    trueDealerCost,
+    dealerFunding:
+      normalizedDealerFunding,
+    grossProfit,
+    grossMarginPercent,
+    netProfit,
+    netMarginPercent
+  };
+}
+
+    function calculateConfiguration() {
+      const calculationStarted = performance.now();
+      const buildStarted = performance.now();
+      const items =
+  buildConfigurationItems();
 
       const configurationBuildMs = performance.now() - buildStarted;
       const pricingStarted = performance.now();
@@ -931,8 +1182,18 @@
         : { status:'NOT_CONFIGURED', messages:['Promotion Engine is unavailable.'], applied:[], rejected:[], adjustments:[], customerSavings:0, dealerFunding:0 };
       const promotionSavings = Math.min(subtotal, money(promotionEvaluation.customerSavings));
       const adjustedSubtotal = Math.max(0, subtotal - promotionSavings);
-      const adjustedGrossProfit = dealerCostSubtotal > 0 ? adjustedSubtotal - dealerCostSubtotal + money(promotionEvaluation.dealerFunding) : null;
-      const adjustedGrossMarginPercent = adjustedGrossProfit === null || adjustedSubtotal <= 0 ? null : (adjustedGrossProfit / adjustedSubtotal) * 100;
+      const dealerProfit =
+  calculateDealerProfit(
+    items,
+    adjustedSubtotal,
+    promotionEvaluation.dealerFunding
+  );
+
+const adjustedGrossProfit =
+  dealerProfit.netProfit;
+
+const adjustedGrossMarginPercent =
+  dealerProfit.netMarginPercent;
 
       const freightEngine = window.UniversalCPQ?.registry?.getEngine('freight');
       const freightEvaluation = freightEngine && typeof freightEngine.evaluate === 'function'
@@ -947,17 +1208,65 @@
             specialOrder: Boolean(appState.specialOrder)
           })
         : { status:'NOT_CONFIGURED', messages:['Freight Engine is unavailable.'], evaluated:[], applied:[], rejected:[], adjustments:[], charge:0 };
-      const freightCharge = Math.max(0, money(freightEvaluation.charge));
-      const totalAfterFreight = adjustedSubtotal + freightCharge;
+      const freightCharge =
+  Math.max(
+    0,
+    money(freightEvaluation.charge)
+  );
 
-      const financeEngine = window.UniversalCPQ?.registry?.getEngine('financing');
+const totalAfterFreight =
+  adjustedSubtotal + freightCharge;
+
+const taxEngine =
+  window.UniversalCPQ?.registry?.getEngine('tax');
+
+const taxEvaluation =
+  taxEngine &&
+  typeof taxEngine.evaluate === 'function'
+    ? taxEngine.evaluate({
+        taxableSubtotal: totalAfterFreight,
+        dealer: effectiveDealer(),
+        taxConfiguration: appState.tax,
+        taxExempt: Boolean(appState.taxExempt),
+        items
+      })
+    : {
+        status: 'NOT_CONFIGURED',
+        taxableSubtotal: totalAfterFreight,
+        ratePercent: 0,
+        rateDecimal: 0,
+        tax: 0,
+        adjustments: [],
+        messages: [
+          'Tax Engine is unavailable.'
+        ]
+      };
+
+const salesTax =
+  Math.max(
+    0,
+    money(taxEvaluation.tax)
+  );
+
+const totalAfterTax =
+  totalAfterFreight + salesTax;
+
+const financeEngine =
+  window.UniversalCPQ?.registry?.getEngine('financing');
       const selectedFinanceProgramId = clean(appState.financeSelection?.programId || appState.application?.defaultFinanceProgramID);
       const financeEvaluation = financeEngine && typeof financeEngine.evaluate === 'function'
         ? financeEngine.evaluate({
             financePrograms: appState.data.financePrograms,
             items,
-            totals: { productSubtotal, componentSubtotal, subtotal: adjustedSubtotal, freight: freightCharge, total: totalAfterFreight },
-            amountFinanced: totalAfterFreight,
+            totals: {
+  productSubtotal,
+  componentSubtotal,
+  subtotal: adjustedSubtotal,
+  freight: freightCharge,
+  tax: salesTax,
+  total: totalAfterTax
+},
+amountFinanced: totalAfterTax,
             selectedProgramId: selectedFinanceProgramId,
             promotionApplied: Boolean(promotionEvaluation.applied?.length),
             brand: appState.brand,
@@ -993,9 +1302,10 @@
           trace
         },
         promotions: promotionEvaluation,
-        freight: freightEvaluation,
-        finance: financeEvaluation,
-        rules,
+freight: freightEvaluation,
+tax: taxEvaluation,
+finance: financeEvaluation,
+rules,
         totals: {
           productSubtotal,
           componentSubtotal,
@@ -1006,13 +1316,37 @@
           dealerPromotionFunding: money(promotionEvaluation.dealerFunding),
           financeDealerFee: money(financeEvaluation.dealerFee),
           financeApplicationFee: money(financeEvaluation.applicationFee),
-          tax: 0,
-          total: totalAfterFreight,
+          tax: salesTax,
+          total: totalAfterTax,
           listSubtotal,
-          dealerCostSubtotal,
-          discountAmount: discountAmount + promotionSavings,
-          grossProfit: adjustedGrossProfit,
-          grossMarginPercent: adjustedGrossMarginPercent
+          dealerCostSubtotal:
+  dealerProfit.dealerCost,
+
+advertisingFee:
+  dealerProfit.advertisingFee,
+
+trueDealerCost:
+  dealerProfit.trueDealerCost,
+
+dealerFunding:
+  dealerProfit.dealerFunding,
+
+discountAmount:
+  discountAmount +
+  promotionSavings,
+
+grossProfit:
+  dealerProfit.grossProfit,
+
+grossMarginPercent:
+  dealerProfit.grossMarginPercent,
+
+netProfit:
+  dealerProfit.netProfit,
+
+netMarginPercent:
+  dealerProfit.netMarginPercent
+  
         },
         performance: {
           configurationBuildMs,
