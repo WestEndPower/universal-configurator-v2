@@ -886,6 +886,84 @@
   }
 }
 
+.pricing-flow {
+  display: grid;
+  gap: 0;
+  max-width: 720px;
+  margin: 0 auto;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.pricing-flow-row[hidden],
+.pricing-savings-summary[hidden],
+.dealer-panel-badge[hidden] {
+  display: none !important;
+}
+
+.pricing-flow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pricing-flow-row:last-of-type {
+  border-bottom: 0;
+}
+
+.pricing-flow-row span {
+  font-weight: 800;
+}
+
+.pricing-flow-row strong {
+  white-space: nowrap;
+  font-size: 16px;
+}
+
+.pricing-savings-row strong {
+  color: var(--success-color);
+}
+
+.pricing-flow-divider {
+  height: 3px;
+  background: var(--brand-primary);
+}
+
+.pricing-applied-row {
+  background: var(--brand-accent);
+  font-size: 17px;
+}
+
+.pricing-applied-row strong {
+  font-size: 21px;
+}
+
+.pricing-savings-summary {
+  padding: 11px 15px;
+  background: #eefbf2;
+  color: var(--success-color);
+  text-align: right;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .pricing-flow-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .pricing-savings-summary {
+    text-align: left;
+  }
+}
+
     .freight-mode-buttons {
   display: flex;
   gap: 10px;
@@ -1344,6 +1422,107 @@
         <span>Equipment Subtotal</span>
         <strong id="configuration-total">$0.00</strong>
       </div>
+
+      <details
+  class="dealer-panel"
+  id="pricing-manager"
+>
+  <summary class="dealer-panel-summary">
+    <span
+      class="dealer-panel-arrow"
+      aria-hidden="true"
+    >
+      ▶
+    </span>
+
+    <span>
+      <span class="dealer-panel-title">
+        Pricing
+      </span>
+
+      <span
+        class="dealer-panel-subtitle"
+        id="pricing-panel-subtitle"
+      >
+        Standard equipment pricing
+      </span>
+    </span>
+
+    <span class="dealer-panel-summary-right">
+      <span
+        class="dealer-panel-badge"
+        id="pricing-panel-badge"
+        hidden
+      >
+        Savings
+      </span>
+
+      <span
+        class="dealer-panel-amount"
+        id="pricing-panel-amount"
+      >
+        $0.00
+      </span>
+    </span>
+  </summary>
+
+  <div class="dealer-panel-content">
+    <div class="pricing-flow">
+      <div class="pricing-flow-row">
+        <span>MSRP / List Total</span>
+
+        <strong id="pricing-list-total">
+          $0.00
+        </strong>
+      </div>
+
+      <div
+        class="pricing-flow-row pricing-savings-row"
+        id="pricing-sale-savings-row"
+        hidden
+      >
+        <span>Sale Price Savings</span>
+
+        <strong id="pricing-sale-savings">
+          -$0.00
+        </strong>
+      </div>
+
+      <div
+        class="pricing-flow-row pricing-savings-row"
+        id="pricing-promotion-row"
+        hidden
+      >
+        <span>Factory Promotions</span>
+
+        <strong id="pricing-promotions">
+          -$0.00
+        </strong>
+      </div>
+
+      <div class="pricing-flow-divider"></div>
+
+      <div class="pricing-flow-row pricing-applied-row">
+        <span>Applied Equipment Price</span>
+
+        <strong id="pricing-applied-price">
+          $0.00
+        </strong>
+      </div>
+
+      <div
+        class="pricing-savings-summary"
+        id="pricing-savings-summary"
+        hidden
+      >
+        Total Customer Savings:
+        <strong id="pricing-total-savings">
+          $0.00
+        </strong>
+      </div>
+    </div>
+  </div>
+</details>
 
       <details
   class="dealer-panel"

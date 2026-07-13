@@ -1514,6 +1514,150 @@ netMarginPercent:
       `;
     }
 
+    function renderPricingManager() {
+  const totals =
+    appState.configuration?.totals || {};
+
+  const panelAmount =
+    byId('pricing-panel-amount');
+
+  const panelSubtitle =
+    byId('pricing-panel-subtitle');
+
+  const panelBadge =
+    byId('pricing-panel-badge');
+
+  const listTotalDisplay =
+    byId('pricing-list-total');
+
+  const saleSavingsRow =
+    byId('pricing-sale-savings-row');
+
+  const saleSavingsDisplay =
+    byId('pricing-sale-savings');
+
+  const promotionRow =
+    byId('pricing-promotion-row');
+
+  const promotionDisplay =
+    byId('pricing-promotions');
+
+  const appliedPriceDisplay =
+    byId('pricing-applied-price');
+
+  const savingsSummary =
+    byId('pricing-savings-summary');
+
+  const totalSavingsDisplay =
+    byId('pricing-total-savings');
+
+  if (
+    !panelAmount ||
+    !listTotalDisplay ||
+    !appliedPriceDisplay
+  ) {
+    return;
+  }
+
+  const listSubtotal =
+    Math.max(
+      0,
+      money(totals.listSubtotal)
+    );
+
+  const prePromotionSubtotal =
+    Math.max(
+      0,
+      money(
+        totals.prePromotionSubtotal ??
+        totals.subtotal
+      )
+    );
+
+  const promotionSavings =
+    Math.max(
+      0,
+      money(totals.promotions)
+    );
+
+  const appliedPrice =
+    Math.max(
+      0,
+      money(totals.subtotal)
+    );
+
+  const salePriceSavings =
+    Math.max(
+      0,
+      listSubtotal -
+      prePromotionSubtotal
+    );
+
+  const totalSavings =
+    Math.max(
+      0,
+      listSubtotal -
+      appliedPrice
+    );
+
+  panelAmount.textContent =
+    formatMoney(appliedPrice);
+
+  listTotalDisplay.textContent =
+    formatMoney(listSubtotal);
+
+  appliedPriceDisplay.textContent =
+    formatMoney(appliedPrice);
+
+  if (saleSavingsDisplay) {
+    saleSavingsDisplay.textContent =
+      `-${formatMoney(salePriceSavings)}`;
+  }
+
+  if (promotionDisplay) {
+    promotionDisplay.textContent =
+      `-${formatMoney(promotionSavings)}`;
+  }
+
+  if (totalSavingsDisplay) {
+    totalSavingsDisplay.textContent =
+      formatMoney(totalSavings);
+  }
+
+  if (saleSavingsRow) {
+    saleSavingsRow.hidden =
+      salePriceSavings <= 0;
+  }
+
+  if (promotionRow) {
+    promotionRow.hidden =
+      promotionSavings <= 0;
+  }
+
+  if (savingsSummary) {
+    savingsSummary.hidden =
+      totalSavings <= 0;
+  }
+
+  if (panelBadge) {
+    panelBadge.hidden =
+      totalSavings <= 0;
+  }
+
+  if (panelSubtitle) {
+    if (promotionSavings > 0) {
+      panelSubtitle.textContent =
+        'Sale pricing and factory promotions applied';
+    } else if (salePriceSavings > 0) {
+      panelSubtitle.textContent =
+        'Sale pricing applied';
+    } else {
+      panelSubtitle.textContent =
+        'Standard equipment pricing';
+    }
+  }
+}
+
     function renderFreightManager() {
   const calculatedDisplay =
     byId('freight-calculated-display');
@@ -1727,9 +1871,10 @@ if (panelBadge) {
           `;
         }).join('');
 
-        renderFreightManager();
+        renderPricingManager();
+renderFreightManager();
 
-      card.hidden = false;
+card.hidden = false;
     }
 
     function renderProducts() {
