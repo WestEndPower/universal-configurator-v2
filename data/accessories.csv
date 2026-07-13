@@ -1,5 +1,2 @@
-﻿AccessoryID,BrandID,SKU,AccessoryName,Description,Price,AppliesToProductID,AppliesToSKU,AppliesToCategory,Active,SortOrder
-ACC-001,test-brand,ACC001,Trimmer Shoulder Strap,Compatible with handheld products in the test catalog.,29.99,,,Handheld,T,1
-ACC-002,test-brand,ACC002,Mower Cover,Weather-resistant cover for Test Product 200.,89.99,TEST-002,,,T,2
-ACC-003,test-brand,ACC003,Tractor Work Light Kit,Auxiliary lighting kit for compact tractor products.,249.99,,,Compact Tractors,T,3
-ACC-004,test-brand,ACC004,Universal Safety Kit,General safety accessory available for all products.,39.99,,,,T,4
+﻿PromotionID,Priority,PromotionName,PromotionType,Value,DiscountBasis,BrandID,ProductID,SKU,Category,System,StartDate,EndDate,RequiresFinance,DealerFundingType,DealerFundingValue,Stackable,CustomerText,MaximumDiscount,Active
+PROMO-TEST-001,1,Test Product 200 Factory Rebate,Dollar_Rebate,200,Matching_Items,test-brand,TEST-002,TEST002,Mowers,,2026-01-01,2026-12-31,F,Fixed,200,T,Factory rebate applied,200,T

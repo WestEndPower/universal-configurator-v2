@@ -118,17 +118,52 @@
         const dealerFunding = norm(rule.DealerFundingType) === 'percent'
           ? calculation.amount * number(rule.DealerFundingValue) / 100
           : number(rule.DealerFundingValue);
-        result = {
-          promotionId,
-          name: text(rule.PromotionName),
-          type: text(rule.PromotionType),
-          status:'APPLIED',
-          amount: calculation.amount,
-          dealerFunding: Math.max(0, dealerFunding),
-          stackable: truthy(rule.Stackable),
-          customerText: text(rule.CustomerText),
-          matchingProductIds: matching.map(item => item.productId)
-        };
+        const promotionName =
+  text(rule.PromotionName);
+
+const customerText =
+  text(rule.CustomerText);
+
+const displayName =
+  customerText ||
+  promotionName ||
+  'Factory Promotion';
+
+result = {
+  promotionId,
+
+  name:
+    promotionName ||
+    'Factory Promotion',
+
+  displayName,
+
+  type:
+    text(rule.PromotionType),
+
+  status:
+    'APPLIED',
+
+  amount:
+    calculation.amount,
+
+  dealerFunding:
+    Math.max(
+      0,
+      dealerFunding
+    ),
+
+  stackable:
+    truthy(rule.Stackable),
+
+  customerText,
+
+  matchingProductIds:
+    matching.map(
+      item => item.productId
+    )
+};
+
         applied.push(result); evaluated.push(result);
         if (!result.stackable) blockedByNonStackable = true;
       });
@@ -138,8 +173,14 @@
       return {
         status: applied.length ? 'APPLIED' : 'PASS',
         messages: applied.length
-          ? applied.map(item => `APPLIED • ${item.promotionId} • -$${item.amount.toFixed(2)}`)
-          : ['No promotions were applied.'],
+  ? applied.map(
+      item =>
+        `APPLIED • ${item.displayName || 'Factory Promotion'} • -$${item.amount.toFixed(2)}`
+    )
+  : [
+      'No promotions were applied.'
+    ],
+    
         evaluated,
         applied,
         rejected,

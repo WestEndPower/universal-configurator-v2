@@ -4022,15 +4022,38 @@ if (resetFreightButton) {
     }
 
     async function loadPromotions() {
-      const path = clean(appState.application?.promotionsDataPath) || 'data/promotions.csv';
-      try {
-        const rows = await loadDataFile('promotions', path);
-        console.log(`Loaded ${rows.length} promotion row(s): ${path}`);
-      } catch (error) {
-        appState.data.promotions = [];
-        console.info(`Promotions not configured: ${path}`);
-      }
-    }
+  const path =
+    clean(
+      appState.application?.promotionsDataPath
+    ) ||
+    'data/promotions.csv';
+
+  try {
+    const rows =
+      await loadCsvFile(path);
+
+    appState.data.promotions =
+      Array.isArray(rows)
+        ? [...rows]
+        : [];
+
+    console.log(
+      `Loaded ${appState.data.promotions.length} promotion row(s): ${path}`
+    );
+    
+  } catch (error) {
+    appState.data.promotions = [];
+
+    console.info(
+      `Promotions not configured: ${path}`
+    );
+
+    console.error(
+      'Promotion loading error:',
+      error
+    );
+  }
+}
 
     async function loadDealerRules() {
       const path = clean(appState.application?.dealerRulesDataPath) || 'data/dealer-rules.csv';

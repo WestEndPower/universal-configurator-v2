@@ -1,0 +1,2 @@
+PromotionID,Priority,PromotionName,PromotionType,Value,DiscountBasis,BrandID,ProductID,SKU,Category,System,StartDate,EndDate,RequiresFinance,DealerFundingType,DealerFundingValue,Stackable,CustomerText,MaximumDiscount,MinimumPurchase,PaymentProgram,CustomerType,DealerLocation,Notes,Active
+PROMO-TEST-001,1,,Dollar_Rebate,200,Matching_Items,,,,Mowers,,2026-01-01,2026-12-31,F,Fixed,200,T,,200,,,,,Sample promotion,T
